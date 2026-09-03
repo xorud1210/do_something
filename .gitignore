@@ -1,0 +1,34 @@
+## Visual Studio
+.vs/
+*.user
+*.suo
+*.aps
+*.VC.db
+*.VC.VC.opendb
+ipch/
+
+## 빌드 산출물
+x64/
+Win32/
+Debug/
+Release/
+Output/
+*.obj
+*.pch
+*.ilk
+*.pdb
+*.idb
+*.lib
+*.exp
+*.tlog
+*.log
+*.cso
+
+## 서드파티 SDK 바이너리
+#
+# Library/Lib/FBX 의 libfbxsdk-*.lib 은 파일 하나가 126~250MB 라
+# GitHub 의 100MB 파일 제한을 넘어 푸시가 막힌다.
+# 헤더(Library/Include)는 커밋하고, .lib 은 각자 배치한다.
+# 자세한 내용은 Library/Lib/README.md 참고.
+Library/Lib/*
+!Library/Lib/README.md
