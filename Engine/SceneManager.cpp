@@ -315,15 +315,21 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 
 		vector<shared_ptr<GameObject>> gameObjects = meshData->Instantiate();
 
+		// .bin models are authored in Unity units (Player.bin is ~1.76 tall), while this
+		// engine's scene works in hundreds of units. Scale up so it is actually visible.
+		const float scale = 100.f;
+		const Vec3 origin = Vec3(90.f, -85.f, 340.f);	// Dragon 과 겹치지 않게 옆으로
+
 		for (auto& gameObject : gameObjects)
 		{
 			gameObject->SetName(L"BinModel");
 			gameObject->SetCheckFrustum(false);
 
 			// Instantiate() already baked the frame matrix into the transform,
-			// so offset instead of overwriting it.
+			// so scale that offset too instead of overwriting it.
 			shared_ptr<Transform> transform = gameObject->GetTransform();
-			transform->SetLocalPosition(transform->GetLocalPosition() + Vec3(0.f, -100.f, 200.f));
+			transform->SetLocalPosition(transform->GetLocalPosition() * scale + origin);
+			transform->SetLocalScale(transform->GetLocalScale() * scale);
 
 			scene->AddGameObject(gameObject);
 		}
