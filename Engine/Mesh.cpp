@@ -240,6 +240,10 @@ void Mesh::CreateSkinBuffers()
 		_boneParentBuffer = make_shared<StructuredBuffer>();
 		_boneParentBuffer->Init(sizeof(int32), static_cast<uint32>(parentVec.size()), parentVec.data());
 
+		// Concatenate every clip into a single buffer and remember where each starts.
+		vector<AnimFrameParams> allFrames;
+		_clipFrameOffset.clear();
+
 		const int32 animCount = static_cast<int32>(_animClips.size());
 		for (int32 i = 0; i < animCount; i++)
 		{
@@ -266,8 +270,15 @@ void Mesh::CreateSkinBuffers()
 			}
 
 			// StructuredBuffer ¼¼ÆÃ
-			_frameBuffer.push_back(make_shared<StructuredBuffer>());
-			_frameBuffer.back()->Init(sizeof(AnimFrameParams), static_cast<uint32>(frameParams.size()), frameParams.data());
+			_clipFrameOffset.push_back(static_cast<int32>(allFrames.size()));
+			allFrames.insert(allFrames.end(), frameParams.begin(), frameParams.end());
+		}
+
+		if (allFrames.empty() == false)
+		{
+			_frameBuffer = make_shared<StructuredBuffer>();
+			_frameBuffer->Init(sizeof(AnimFrameParams),
+				static_cast<uint32>(allFrames.size()), allFrames.data());
 		}
 	}
 #pragma endregion

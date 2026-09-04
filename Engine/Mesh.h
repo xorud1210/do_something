@@ -64,7 +64,15 @@ public:
 	const vector<AnimClipInfo>* GetAnimClip() { return &_animClips; }
 
 	bool							IsAnimMesh() { return !_animClips.empty(); }
-	shared_ptr<StructuredBuffer>	GetBoneFrameDataBuffer(int32 index = 0) { return _frameBuffer[index]; } // 전체 본 프레임 정보
+	// All clips live in one buffer; a clip is addressed by its element offset.
+	// Crossfading needs two clips at once, so they cannot be separate buffers.
+	shared_ptr<StructuredBuffer>	GetBoneFrameDataBuffer() { return _frameBuffer; }
+	int32							GetClipFrameOffset(int32 clipIndex)
+	{
+		if (clipIndex < 0 || clipIndex >= static_cast<int32>(_clipFrameOffset.size()))
+			return 0;
+		return _clipFrameOffset[clipIndex];
+	} // 전체 본 프레임 정보
 	shared_ptr<StructuredBuffer>	GetBoneOffsetBuffer() { return  _offsetBuffer; }
 
 	// Bone frames may be parent-relative (.bin) or already baked to model space (FBX).
@@ -87,6 +95,7 @@ private:
 	shared_ptr<StructuredBuffer>	_boneParentBuffer;	// int32 parent index per bone
 	bool							_boneFramesLocal = false;
 	shared_ptr<StructuredBuffer>	_offsetBuffer; // 각 뼈의 offset 행렬
-	vector<shared_ptr<StructuredBuffer>> _frameBuffer; // 전체 본 프레임 정보
+	shared_ptr<StructuredBuffer>	_frameBuffer;		// every clip, concatenated
+	vector<int32>					_clipFrameOffset;	// element offset of each clip // 전체 본 프레임 정보
 };
 

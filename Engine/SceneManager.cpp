@@ -17,6 +17,8 @@
 #include "SphereCollider.h"
 #include "MeshData.h"
 #include "Animator.h"
+#include "PlayerController.h"
+#include "FollowCamera.h"
 
 
 void SceneManager::Update()
@@ -143,6 +145,9 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 #pragma endregion
 
 	shared_ptr<Scene> scene = make_shared<Scene>();
+
+	// Kept outside the block so the follow camera can be wired to the player below.
+	shared_ptr<GameObject> mainCamera;
 	
 #pragma region Camera
 	{
@@ -150,7 +155,9 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		camera->SetName(L"Main_Camera");
 		camera->AddComponent(make_shared<Transform>());
 		camera->AddComponent(make_shared<Camera>()); // Near=1, Far=1000, FOV=45��
-		camera->AddComponent(make_shared<TestCameraScript>());
+		// TestCameraScript moves the camera with WASD, which fights the player for
+		// the same keys. A follow camera is attached after the player is created.
+		mainCamera = camera;
 		camera->GetCamera()->SetFar(10000.f);
 		camera->GetTransform()->SetLocalPosition(Vec3(0.f, 0.f, 0.f));
 		uint8 layerIndex = GET_SINGLE(SceneManager)->LayerNameToIndex(L"UI");
@@ -311,32 +318,53 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 
 #pragma region BinModel
 	{
-		// .bin loader smoke test (Phase 1)
 		shared_ptr<MeshData> meshData = GET_SINGLE(Resources)->LoadBin(L"../Resources/Model/Player.bin");
+		vector<shared_ptr<GameObject>> parts = meshData->Instantiate();
 
-		vector<shared_ptr<GameObject>> gameObjects = meshData->Instantiate();
-
-		// .bin models are authored in Unity units (Player.bin is ~1.76 tall), while this
-		// engine's scene works in hundreds of units. Scale up so it is actually visible.
+		// .bin models are authored in Unity units (Player.bin is ~1.76 tall) while this
+		// scene works in hundreds of units, so scale up to make it visible.
 		const float scale = 100.f;
-		const Vec3 origin = Vec3(90.f, -85.f, 340.f);	// Dragon 과 겹치지 않게 옆으로
 
-		for (auto& gameObject : gameObjects)
+		// The model comes in as one GameObject per mesh, so make a root to hold the
+		// movement and let the parts follow through Transform parenting.
+		shared_ptr<GameObject> player = make_shared<GameObject>();
+		player->SetName(L"Player");
+		player->AddComponent(make_shared<Transform>());
+		player->SetCheckFrustum(false);
+		player->SetStatic(false);
+
+		shared_ptr<Transform> playerTransform = player->GetTransform();
+		playerTransform->SetLocalPosition(Vec3(90.f, -85.f, 340.f));
+		playerTransform->SetLocalScale(Vec3(scale, scale, scale));
+		// The model faces +Z, so without this we only ever see its back.
+		playerTransform->SetLocalRotation(Vec3(0.f, XM_PI, 0.f));
+
+		shared_ptr<PlayerController> controller = make_shared<PlayerController>();
+		controller->SetFacing(XM_PI);
+		// Root translation is in world units; the 100x scale does not apply to it.
+		controller->SetMoveSpeed(250.f);
+
+		for (auto& part : parts)
 		{
-			gameObject->SetName(L"BinModel");
-			gameObject->SetCheckFrustum(false);
+			part->SetName(L"PlayerPart");
+			part->SetCheckFrustum(false);
+			part->SetStatic(false);
+			part->GetTransform()->SetParent(playerTransform);
 
-			// Instantiate() already baked the frame matrix into the transform,
-			// so scale that offset too instead of overwriting it.
-			shared_ptr<Transform> transform = gameObject->GetTransform();
-			transform->SetLocalPosition(transform->GetLocalPosition() * scale + origin);
-			transform->SetLocalScale(transform->GetLocalScale() * scale);
+			controller->AddPart(part);
+			scene->AddGameObject(part);
+		}
 
-			// Player.bin clip order: 0 idle / 1-4 Walk / 5-8 Run / 9-11 Jump / 12-15 Combat
-			if (gameObject->GetAnimator())
-				gameObject->GetAnimator()->Play(5);	// Run_Forward
+		player->AddComponent(controller);
+		scene->AddGameObject(player);
 
-			scene->AddGameObject(gameObject);
+		if (mainCamera)
+		{
+			shared_ptr<FollowCamera> follow = make_shared<FollowCamera>();
+			follow->SetTarget(player);
+			follow->SetOffset(Vec3(0.f, 130.f, -330.f));
+			follow->SetLookHeight(90.f);
+			mainCamera->AddComponent(follow);
 		}
 	}
 #pragma endregion
