@@ -231,6 +231,15 @@ void Mesh::CreateSkinBuffers()
 		_offsetBuffer = make_shared<StructuredBuffer>();
 		_offsetBuffer->Init(sizeof(Matrix), static_cast<uint32>(offsetVec.size()), offsetVec.data());
 
+		// Parent index table. Only used when the frames are local, but at 4 bytes
+		// per bone it is cheap enough to always build.
+		vector<int32> parentVec(boneCount);
+		for (int32 b = 0; b < boneCount; b++)
+			parentVec[b] = _bones[b].parentIdx;
+
+		_boneParentBuffer = make_shared<StructuredBuffer>();
+		_boneParentBuffer->Init(sizeof(int32), static_cast<uint32>(parentVec.size()), parentVec.data());
+
 		const int32 animCount = static_cast<int32>(_animClips.size());
 		for (int32 i = 0; i < animCount; i++)
 		{
@@ -339,9 +348,16 @@ void Mesh::CreateBonesAndAnimationsFromBin(BinLoader& loader)
 		BoneInfo boneInfo = {};
 		boneInfo.boneName = bone->boneName;
 		boneInfo.parentIdx = bone->parentIndex;
-		boneInfo.matOffset = bone->matOffset;
+		// The compute shader reads g_offset column-major. The FBX path copies
+		// FbxAMatrix straight through and already lands in that form, but .bin
+		// offsets are row-major, so match the convention here.
+		boneInfo.matOffset = bone->matOffset.Transpose();
 		_bones.push_back(boneInfo);
 	}
+
+	// BinLoader bakes the hierarchy into the clips at load time, so the frames
+	// arriving here are already in model space (same shape as the FBX path).
+	_boneFramesLocal = true;
 
 	CreateSkinBuffers();
 }

@@ -118,6 +118,7 @@ void BinLoader::LoadBin(const wstring& path)
 
 	CreateTextures();
 	CreateMaterials();
+
 }
 
 // ---------------------------------------------------------------------------

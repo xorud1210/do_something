@@ -7,6 +7,7 @@
 #include "Resources.h"
 #include "Transform.h"
 #include "MeshRenderer.h"
+#include "Animator.h"
 
 MeshData::MeshData() : Object(OBJECT_TYPE::MESH_DATA)
 {
@@ -66,6 +67,16 @@ vector<shared_ptr<GameObject>> MeshData::Instantiate()
 		gameObject->AddComponent(make_shared<Transform>());
 		gameObject->AddComponent(make_shared<MeshRenderer>());
 		gameObject->GetMeshRenderer()->SetMesh(info.mesh);
+
+		// Skinned meshes need an Animator to drive the bone matrices; without one
+		// MeshRenderer never sets the skinning flag and the mesh renders in bind pose.
+		if (info.mesh && info.mesh->IsAnimMesh())
+		{
+			shared_ptr<Animator> animator = make_shared<Animator>();
+			animator->SetBones(info.mesh->GetBones());
+			animator->SetAnimClip(info.mesh->GetAnimClip());
+			gameObject->AddComponent(animator);
+		}
 
 		// Bake the accumulated frame matrix into the Transform.
 		if (info.matLocal != Matrix::Identity)

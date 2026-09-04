@@ -16,6 +16,7 @@
 #include "Terrain.h"
 #include "SphereCollider.h"
 #include "MeshData.h"
+#include "Animator.h"
 
 
 void SceneManager::Update()
@@ -330,6 +331,10 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 			shared_ptr<Transform> transform = gameObject->GetTransform();
 			transform->SetLocalPosition(transform->GetLocalPosition() * scale + origin);
 			transform->SetLocalScale(transform->GetLocalScale() * scale);
+
+			// Player.bin clip order: 0 idle / 1-4 Walk / 5-8 Run / 9-11 Jump / 12-15 Combat
+			if (gameObject->GetAnimator())
+				gameObject->GetAnimator()->Play(5);	// Run_Forward
 
 			scene->AddGameObject(gameObject);
 		}

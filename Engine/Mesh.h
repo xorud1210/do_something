@@ -67,6 +67,12 @@ public:
 	shared_ptr<StructuredBuffer>	GetBoneFrameDataBuffer(int32 index = 0) { return _frameBuffer[index]; } // 전체 본 프레임 정보
 	shared_ptr<StructuredBuffer>	GetBoneOffsetBuffer() { return  _offsetBuffer; }
 
+	// Bone frames may be parent-relative (.bin) or already baked to model space (FBX).
+	// When local, the compute shader has to rebuild the hierarchy.
+	shared_ptr<StructuredBuffer>	GetBoneParentBuffer() { return _boneParentBuffer; }
+	bool							AreBoneFramesLocal() { return _boneFramesLocal; }
+	void							SetBoneFramesLocal(bool value) { _boneFramesLocal = value; }
+
 private:
 	ComPtr<ID3D12Resource>		_vertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW	_vertexBufferView = {};
@@ -78,6 +84,8 @@ private:
 	vector<AnimClipInfo>			_animClips;
 	vector<BoneInfo>				_bones;
 
+	shared_ptr<StructuredBuffer>	_boneParentBuffer;	// int32 parent index per bone
+	bool							_boneFramesLocal = false;
 	shared_ptr<StructuredBuffer>	_offsetBuffer; // 각 뼈의 offset 행렬
 	vector<shared_ptr<StructuredBuffer>> _frameBuffer; // 전체 본 프레임 정보
 };

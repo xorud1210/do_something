@@ -475,6 +475,13 @@ void Resources::CreateDefaultShader()
 		Add<Shader>(L"ComputeShader", shader);
 	}
 
+	// ComputeAnimation - used by Animator to build the final bone matrices
+	{
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateComputeShader(L"..\\Resources\\Shader\\animation.fx", "CS_Main", "cs_5_0");
+		Add<Shader>(L"ComputeAnimation", shader);
+	}
+
 	// Particle
 	{
 		ShaderInfo info =
@@ -623,6 +630,14 @@ void Resources::CreateDefaultMaterial()
 		shared_ptr<Material> material = make_shared<Material>();
 		material->SetShader(shader);
 		Add<Material>(L"ComputeShader", material);
+	}
+
+	// ComputeAnimation
+	{
+		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"ComputeAnimation");
+		shared_ptr<Material> material = make_shared<Material>();
+		material->SetShader(shader);
+		Add<Material>(L"ComputeAnimation", material);
 	}
 
 	// Particle
