@@ -65,7 +65,9 @@ LightColor CalculateLightColor(int lightIndex, float3 viewNormal, float3 viewPos
     float3 reflectionDir = normalize(viewLightDir + 2 * (saturate(dot(-viewLightDir, viewNormal)) * viewNormal));
     float3 eyeDir = normalize(viewPos);
     specularRatio = saturate(dot(-eyeDir, reflectionDir));
-    specularRatio = pow(specularRatio, 2);
+    // 지수가 2 면 하이라이트가 너무 넓게 퍼져 평평한 면이 통째로 거울처럼 보인다.
+    // 머티리얼별 거칠기 개념이 없어서 일단 고정값으로 좀혀둔다.
+    specularRatio = pow(specularRatio, 24);
 
     color.diffuse = g_light[lightIndex].color.diffuse * diffuseRatio * distanceRatio;
     color.ambient = g_light[lightIndex].color.ambient * distanceRatio;

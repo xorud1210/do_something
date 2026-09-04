@@ -507,6 +507,33 @@ void Resources::CreateDefaultShader()
 		Add<Shader>(L"Particle", shader);
 	}
 
+	// ParticleAdditive
+	// 발광하는 것(불꽃, 스파크)은 가산 블렌딩이 맞다.
+	// 겹칠수록 밝아져야 하고, 그리는 순서에 결과가 안 달라진다.
+	{
+		ShaderInfo info =
+		{
+			SHADER_TYPE::PARTICLE,
+			RASTERIZER_TYPE::CULL_BACK,
+			DEPTH_STENCIL_TYPE::LESS_NO_WRITE,
+			BLEND_TYPE::ONE_TO_ONE_BLEND,
+			D3D_PRIMITIVE_TOPOLOGY_POINTLIST
+		};
+
+		ShaderArg arg =
+		{
+			"VS_Main",
+			"",
+			"",
+			"GS_Main",
+			"PS_Additive"
+		};
+
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\particle.fx", info, arg);
+		Add<Shader>(L"ParticleAdditive", shader);
+	}
+
 	// ComputeParticle
 	{
 		shared_ptr<Shader> shader = make_shared<Shader>();
@@ -744,6 +771,14 @@ void Resources::CreateDefaultMaterial()
 		shared_ptr<Material> material = make_shared<Material>();
 		material->SetShader(shader);
 		Add<Material>(L"Particle", material);
+	}
+
+	// ParticleAdditive
+	{
+		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"ParticleAdditive");
+		shared_ptr<Material> material = make_shared<Material>();
+		material->SetShader(shader);
+		Add<Material>(L"ParticleAdditive", material);
 	}
 
 	// ComputeParticle

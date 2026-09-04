@@ -246,6 +246,111 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 	}*/
 #pragma endregion
 
+#pragma region Ground
+	// 바닥. 캐릭터가 허공에 떠 있어서 파티클이 무엇과 만나는지도 보이지 않았다.
+	// 소프트 파티클은 "뒤에 있는 물체"와의 깊이 차로 페이드하는 거라
+	// 애초에 뚫고 들어갈 면이 없으면 확인할 수가 없다.
+	{
+		shared_ptr<GameObject> obj = make_shared<GameObject>();
+		obj->SetName(L"Ground");
+		obj->AddComponent(make_shared<Transform>());
+		obj->GetTransform()->SetLocalScale(Vec3(4000.f, 20.f, 4000.f));
+		obj->GetTransform()->SetLocalPosition(Vec3(90.f, -95.f, 340.f));
+		obj->SetStatic(true);
+		obj->SetCheckFrustum(false);
+
+		shared_ptr<MeshRenderer> meshRenderer = make_shared<MeshRenderer>();
+		meshRenderer->SetMesh(GET_SINGLE(Resources)->LoadCubeMesh());
+		{
+			// 4000 유닛짜리 면에 텍스처를 한 장만 깔면 가죽 무늬의 얼룩이
+			// 거대한 흰 반점으로 늘어난다. 잘게 반복시킨다.
+			shared_ptr<Material> material = GET_SINGLE(Resources)->Get<Material>(L"GameObject")->Clone();
+			material->SetVec2(0, Vec2(24.f, 24.f));
+			meshRenderer->SetMaterial(material);
+		}
+		obj->AddComponent(meshRenderer);
+
+		scene->AddGameObject(obj);
+	}
+#pragma endregion
+
+#pragma region Particle
+	// 화톳불. 지금까지 블룸이 물 수 있는 건 밝게 조명받은 표면뿐이었다.
+	// 화면 안에 실제로 빛나는 것을 두면 그때부터 "빛 번짐"이 된다.
+	{
+		shared_ptr<GameObject> obj = make_shared<GameObject>();
+		obj->SetName(L"Campfire");
+		obj->AddComponent(make_shared<Transform>());
+		obj->GetTransform()->SetLocalPosition(Vec3(250.f, -85.f, 460.f));
+		obj->SetCheckFrustum(false);
+
+		ParticleDesc desc;
+		desc.maxParticle = 300;
+		desc.createInterval = 0.009f;
+		desc.minLifeTime = 0.6f;
+		desc.maxLifeTime = 1.3f;
+		desc.minSpeed = 60.f;
+		desc.maxSpeed = 130.f;
+		desc.startScale = 26.f;
+		desc.endScale = 4.f;
+		desc.startColor = Vec4(1.00f, 0.55f, 0.16f, 1.f);
+		desc.endColor = Vec4(0.85f, 0.10f, 0.02f, 0.f);
+		desc.emissive = 2.2f;					// HDR 범위로 올려 블룸이 물게 한다
+		desc.shape = PARTICLE_EMITTER_SHAPE::CONE;
+		desc.radius = 20.f;
+		desc.coneAngle = 0.42f;
+		desc.gravity = Vec3(0.f, 45.f, 0.f);	// 열기에 떠오른다
+		desc.drag = 1.2f;
+		desc.maxSpin = 2.0f;
+		desc.softFadeDistance = 40.f;
+		desc.additive = true;
+
+		shared_ptr<ParticleSystem> particle = make_shared<ParticleSystem>();
+		particle->SetDesc(desc);
+		obj->AddComponent(particle);
+
+		scene->AddGameObject(obj);
+	}
+
+	// 불티. 올라갔다 중력에 떨어진다.
+	{
+		shared_ptr<GameObject> obj = make_shared<GameObject>();
+		obj->SetName(L"Ember");
+		obj->AddComponent(make_shared<Transform>());
+		obj->GetTransform()->SetLocalPosition(Vec3(250.f, -75.f, 460.f));
+		obj->SetCheckFrustum(false);
+
+		ParticleDesc desc;
+		desc.maxParticle = 220;
+		desc.createInterval = 0.03f;
+		desc.minLifeTime = 1.2f;
+		desc.maxLifeTime = 2.4f;
+		desc.minSpeed = 110.f;
+		desc.maxSpeed = 210.f;
+		desc.startScale = 6.f;
+		desc.endScale = 2.f;
+		desc.startColor = Vec4(1.00f, 0.78f, 0.40f, 1.f);
+		desc.endColor = Vec4(1.00f, 0.28f, 0.05f, 0.f);
+		desc.emissive = 4.5f;
+		desc.shape = PARTICLE_EMITTER_SHAPE::CONE;
+		desc.radius = 12.f;
+		desc.coneAngle = 0.55f;
+		desc.gravity = Vec3(0.f, -70.f, 0.f);
+		desc.drag = 0.25f;
+		desc.maxSpin = 4.f;
+		desc.softFadeDistance = 20.f;
+		desc.additive = true;
+		desc.textureKey = L"ParticleSpark";
+		desc.texturePath = L"..\\Resources\\Texture\\Particle\\spark.png";
+
+		shared_ptr<ParticleSystem> particle = make_shared<ParticleSystem>();
+		particle->SetDesc(desc);
+		obj->AddComponent(particle);
+
+		scene->AddGameObject(obj);
+	}
+#pragma endregion
+
 #pragma region UI_Test
 	// Debug monitors for the render targets, pinned to the top-left corner.
 	// Derived from the window size so they stay put if the resolution changes.
@@ -312,7 +417,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 
 		const PointLightDesc descs[] =
 		{
-			{ Vec3(-140.f,  60.f, 180.f), Vec3(2.0f, 0.70f, 0.18f), 420.f }, // 주황
+			{ Vec3( 250.f, -20.f, 460.f), Vec3(2.4f, 0.85f, 0.22f), 520.f }, // 주황 - 화톳불 자리
 			{ Vec3( 330.f,  40.f, 240.f), Vec3(0.20f, 0.60f, 1.8f), 420.f }, // 파랑
 			{ Vec3(  90.f, 250.f, 120.f), Vec3(1.2f, 0.25f, 1.1f),  380.f }, // 보라
 		};
