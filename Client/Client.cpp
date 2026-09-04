@@ -35,6 +35,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LoadStringW(hInstance, IDC_CLIENT, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
+    // The window is created at this size, so it has to be set before InitInstance.
+    GWindowInfo.width = 1600;
+    GWindowInfo.height = 1200;
+    GWindowInfo.windowed = true;
+
     // 애플리케이션 초기화를 수행합니다:
     if (!InitInstance (hInstance, nCmdShow))
     {
@@ -44,10 +49,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_CLIENT));
 
     MSG msg;
-
-    GWindowInfo.width = 800;
-    GWindowInfo.height = 600;
-    GWindowInfo.windowed = true;
 
     unique_ptr<Game> game = make_unique<Game>();
     game->Init(GWindowInfo);
@@ -116,8 +117,16 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+   // The swap chain is created at GWindowInfo size, so the client area has to
+   // match it exactly. CW_USEDEFAULT left them mismatched and the present was
+   // being stretched into whatever size Windows picked.
+   const DWORD style = WS_OVERLAPPEDWINDOW;
+   RECT rect = { 0, 0, GWindowInfo.width, GWindowInfo.height };
+   ::AdjustWindowRect(&rect, style, FALSE);
+
+   HWND hWnd = CreateWindowW(szWindowClass, szTitle, style,
+      CW_USEDEFAULT, CW_USEDEFAULT, rect.right - rect.left, rect.bottom - rect.top,
+      nullptr, nullptr, hInstance, nullptr);
 
    if (!hWnd)
    {

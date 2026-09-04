@@ -247,13 +247,18 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 #pragma endregion
 
 #pragma region UI_Test
+	// Debug monitors for the render targets, pinned to the top-left corner.
+	// Derived from the window size so they stay put if the resolution changes.
 	for (int32 i = 0; i < 6; i++)
 	{
 		shared_ptr<GameObject> obj = make_shared<GameObject>();
 		obj->SetLayerIndex(GET_SINGLE(SceneManager)->LayerNameToIndex(L"UI")); // UI
 		obj->AddComponent(make_shared<Transform>());
 		obj->GetTransform()->SetLocalScale(Vec3(100.f, 100.f, 100.f));
-		obj->GetTransform()->SetLocalPosition(Vec3(-350.f + (i * 120), 250.f, 500.f));
+		obj->GetTransform()->SetLocalPosition(Vec3(
+			-(GEngine->GetWindow().width * 0.5f) + 12.f + 50.f + i * 120.f,
+			 (GEngine->GetWindow().height * 0.5f) - 12.f - 50.f,
+			 500.f));
 		shared_ptr<MeshRenderer> meshRenderer = make_shared<MeshRenderer>();
 		{
 			shared_ptr<Mesh> mesh = GET_SINGLE(Resources)->LoadRectangleMesh();

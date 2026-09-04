@@ -76,7 +76,12 @@ void Engine::ResizeWindow(int32 width, int32 height)
 
 	RECT rect = { 0, 0, width, height };
 	::AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, false);
-	::SetWindowPos(_window.hwnd, 0, 100, 100, width, height, 0);
+	// AdjustWindowRect gives the window size that yields the requested client
+	// area. Passing width/height straight through made the client area smaller
+	// than the swap chain by the border and title bar, so the present was
+	// being stretched.
+	::SetWindowPos(_window.hwnd, 0, 100, 100,
+		rect.right - rect.left, rect.bottom - rect.top, 0);
 }
 
 void Engine::ShowFps()
