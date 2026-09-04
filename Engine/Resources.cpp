@@ -374,11 +374,11 @@ void Resources::CreateDefaultShader()
 		Add<Shader>(L"Forward", shader);
 	}
 
-	// Texture (Forward)
+	// Texture (SwapChain)
 	{
 		ShaderInfo info =
 		{
-			SHADER_TYPE::FORWARD,
+			SHADER_TYPE::SWAP_CHAIN,
 			RASTERIZER_TYPE::CULL_NONE,
 			DEPTH_STENCIL_TYPE::NO_DEPTH_TEST_NO_WRITE
 		};
@@ -449,7 +449,7 @@ void Resources::CreateDefaultShader()
 	{
 		ShaderInfo info =
 		{
-			SHADER_TYPE::LIGHTING,
+			SHADER_TYPE::POST_PROCESS,
 			RASTERIZER_TYPE::CULL_BACK,
 			DEPTH_STENCIL_TYPE::NO_DEPTH_TEST_NO_WRITE,
 		};
@@ -577,6 +577,75 @@ void Resources::CreateDefaultShader()
 		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\terrain.fx", info, arg);
 		Add<Shader>(L"Terrain", shader);
 	}
+
+	// BrightPass (PostProcess)
+	{
+		ShaderInfo info =
+		{
+			SHADER_TYPE::POST_PROCESS,
+			RASTERIZER_TYPE::CULL_NONE,
+			DEPTH_STENCIL_TYPE::NO_DEPTH_TEST_NO_WRITE
+		};
+
+		ShaderArg arg =
+		{
+			"VS_Main",
+			"",
+			"",
+			"",
+			"PS_BrightPass"
+		};
+
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\postprocess.fx", info, arg);
+		Add<Shader>(L"BrightPass", shader);
+	}
+
+	// Blur (PostProcess)
+	{
+		ShaderInfo info =
+		{
+			SHADER_TYPE::POST_PROCESS,
+			RASTERIZER_TYPE::CULL_NONE,
+			DEPTH_STENCIL_TYPE::NO_DEPTH_TEST_NO_WRITE
+		};
+
+		ShaderArg arg =
+		{
+			"VS_Main",
+			"",
+			"",
+			"",
+			"PS_Blur"
+		};
+
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\postprocess.fx", info, arg);
+		Add<Shader>(L"Blur", shader);
+	}
+
+	// Tonemap (SwapChain)
+	{
+		ShaderInfo info =
+		{
+			SHADER_TYPE::SWAP_CHAIN,
+			RASTERIZER_TYPE::CULL_NONE,
+			DEPTH_STENCIL_TYPE::NO_DEPTH_TEST_NO_WRITE
+		};
+
+		ShaderArg arg =
+		{
+			"VS_Main",
+			"",
+			"",
+			"",
+			"PS_Tonemap"
+		};
+
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\postprocess.fx", info, arg);
+		Add<Shader>(L"Tonemap", shader);
+	}
 }
 
 void Resources::CreateDefaultMaterial()
@@ -622,6 +691,35 @@ void Resources::CreateDefaultMaterial()
 		material->SetTexture(1, GET_SINGLE(Resources)->Get<Texture>(L"DiffuseLightTarget"));
 		material->SetTexture(2, GET_SINGLE(Resources)->Get<Texture>(L"SpecularLightTarget"));
 		Add<Material>(L"Final", material);
+	}
+
+	// BrightPass
+	{
+		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"BrightPass");
+		shared_ptr<Material> material = make_shared<Material>();
+		material->SetShader(shader);
+		material->SetTexture(0, GET_SINGLE(Resources)->Get<Texture>(L"HDRTarget"));
+		Add<Material>(L"BrightPass", material);
+	}
+
+	// Blur
+	// 입력 텍스처와 이동량(g_vec2_0)이 패스마다 달라서 Scene 이 매번 채워 넣는다.
+	{
+		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"Blur");
+		shared_ptr<Material> material = make_shared<Material>();
+		material->SetShader(shader);
+		Add<Material>(L"Blur", material);
+	}
+
+	// Tonemap
+	{
+		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"Tonemap");
+		shared_ptr<Material> material = make_shared<Material>();
+		material->SetShader(shader);
+		material->SetTexture(0, GET_SINGLE(Resources)->Get<Texture>(L"HDRTarget"));
+		material->SetTexture(1, GET_SINGLE(Resources)->Get<Texture>(L"BloomHalfTarget_0"));
+		material->SetTexture(2, GET_SINGLE(Resources)->Get<Texture>(L"BloomQuarterTarget_0"));
+		Add<Material>(L"Tonemap", material);
 	}
 
 	// Compute Shader

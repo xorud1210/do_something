@@ -74,16 +74,16 @@ void Shader::CreateGraphicsShader(const wstring& path, ShaderInfo info, ShaderAr
 		break;
 	case SHADER_TYPE::FORWARD:
 		_graphicsPipelineDesc.NumRenderTargets = 1;
-		_graphicsPipelineDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		_graphicsPipelineDesc.RTVFormats[0] = HDR_RENDER_TARGET_FORMAT;
 		break;
 	case SHADER_TYPE::LIGHTING:
 		_graphicsPipelineDesc.NumRenderTargets = 2;
-		_graphicsPipelineDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		_graphicsPipelineDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		_graphicsPipelineDesc.RTVFormats[0] = HDR_RENDER_TARGET_FORMAT;
+		_graphicsPipelineDesc.RTVFormats[1] = HDR_RENDER_TARGET_FORMAT;
 		break;
 	case SHADER_TYPE::PARTICLE:
 		_graphicsPipelineDesc.NumRenderTargets = 1;
-		_graphicsPipelineDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		_graphicsPipelineDesc.RTVFormats[0] = HDR_RENDER_TARGET_FORMAT;
 		break;
 	case SHADER_TYPE::COMPUTE:
 		_graphicsPipelineDesc.NumRenderTargets = 0;
@@ -91,6 +91,14 @@ void Shader::CreateGraphicsShader(const wstring& path, ShaderInfo info, ShaderAr
 	case SHADER_TYPE::SHADOW:
 		_graphicsPipelineDesc.NumRenderTargets = 1;
 		_graphicsPipelineDesc.RTVFormats[0] = DXGI_FORMAT_R32_FLOAT;
+		break;
+	case SHADER_TYPE::POST_PROCESS:
+		_graphicsPipelineDesc.NumRenderTargets = 1;
+		_graphicsPipelineDesc.RTVFormats[0] = HDR_RENDER_TARGET_FORMAT;
+		break;
+	case SHADER_TYPE::SWAP_CHAIN:
+		_graphicsPipelineDesc.NumRenderTargets = 1;
+		_graphicsPipelineDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
 		break;
 	}
 

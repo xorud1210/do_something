@@ -3,12 +3,14 @@
 
 enum class SHADER_TYPE : uint8
 {
-	DEFERRED,
-	FORWARD,
-	LIGHTING,
-	PARTICLE,
+	DEFERRED,     // G-Buffer 3장
+	FORWARD,      // HDR 씬 (스카이박스, 포워드 오브젝트)
+	LIGHTING,     // 조명 누적 2장. HDR
+	PARTICLE,     // HDR 씬에 가산/알파로 얹는다
 	COMPUTE,
 	SHADOW,
+	POST_PROCESS, // HDR 한 장에 그린다. 블룸 추출/블러, 조명 합성
+	SWAP_CHAIN,   // 백버퍼(R8G8B8A8)에 직접. 톤매핑 결과와 UI
 };
 
 enum class RASTERIZER_TYPE : uint8

@@ -10,7 +10,15 @@ void RootSignature::Init()
 
 void RootSignature::CreateGraphicsRootSignature()
 {
-	_samplerDesc = CD3DX12_STATIC_SAMPLER_DESC(0);
+	_samplerDesc[0] = CD3DX12_STATIC_SAMPLER_DESC(0);
+
+	// 화면 전체를 훑는 패스(블룸, 톤매핑)가 쓰는 샘플러.
+	// 기본 샘플러는 Wrap 이라 화면 끝에서 반대편 픽셀을 끌어와 블러가 테두리를 물들인다.
+	_samplerDesc[1] = CD3DX12_STATIC_SAMPLER_DESC(1,
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
 
 	CD3DX12_DESCRIPTOR_RANGE ranges[] =
 	{
@@ -22,7 +30,7 @@ void RootSignature::CreateGraphicsRootSignature()
 	param[0].InitAsConstantBufferView(static_cast<uint32>(CBV_REGISTER::b0)); // b0
 	param[1].InitAsDescriptorTable(_countof(ranges), ranges);	
 
-	D3D12_ROOT_SIGNATURE_DESC sigDesc = CD3DX12_ROOT_SIGNATURE_DESC(_countof(param), param, 1, &_samplerDesc);
+	D3D12_ROOT_SIGNATURE_DESC sigDesc = CD3DX12_ROOT_SIGNATURE_DESC(_countof(param), param, _countof(_samplerDesc), _samplerDesc);
 	sigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT; // 입력 조립기 단계
 
 	ComPtr<ID3DBlob> blobSignature;

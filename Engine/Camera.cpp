@@ -72,6 +72,9 @@ void Camera::SortGameObject()
 				_vecDeferred.push_back(gameObject);
 				break;
 			case SHADER_TYPE::FORWARD:
+			case SHADER_TYPE::SWAP_CHAIN:
+				// 그리는 방식은 포워드와 같다. 대상 렌더타겟만 백버퍼로 다르고,
+				// 그건 Scene 이 어느 패스에서 부르느냐로 갈린다.
 				_vecForward.push_back(gameObject);
 				break;
 			}

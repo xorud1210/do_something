@@ -249,7 +249,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 #pragma region UI_Test
 	// Debug monitors for the render targets, pinned to the top-left corner.
 	// Derived from the window size so they stay put if the resolution changes.
-	for (int32 i = 0; i < 6; i++)
+	for (int32 i = 0; i < 7; i++)
 	{
 		shared_ptr<GameObject> obj = make_shared<GameObject>();
 		obj->SetLayerIndex(GET_SINGLE(SceneManager)->LayerNameToIndex(L"UI")); // UI
@@ -272,8 +272,10 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 				texture = GEngine->GetRTGroup(RENDER_TARGET_GROUP_TYPE::G_BUFFER)->GetRTTexture(i);
 			else if (i < 5)
 				texture = GEngine->GetRTGroup(RENDER_TARGET_GROUP_TYPE::LIGHTING)->GetRTTexture(i - 3);
-			else
+			else if (i < 6)
 				texture = GEngine->GetRTGroup(RENDER_TARGET_GROUP_TYPE::SHADOW)->GetRTTexture(0);
+			else
+				texture = GEngine->GetRTGroup(RENDER_TARGET_GROUP_TYPE::BLOOM_HALF)->GetRTTexture(0);
 
 			shared_ptr<Material> material = make_shared<Material>();
 			material->SetShader(shader);
@@ -298,6 +300,37 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		light->GetLight()->SetSpecular(Vec3(0.1f, 0.1f, 0.1f));
 
 		scene->AddGameObject(light);
+	}
+#pragma endregion
+
+#pragma region Point Light
+	// HDR 로 바꾸기 전에는 조명을 늘려도 곧바로 흰색에서 잘려서 의미가 없었다.
+	// 이제 1 을 넘는 밝기가 그대로 남으므로, 세기를 1 이상으로 줘서
+	// 블룸이 물어갈 만큼 밝은 지점을 만든다.
+	{
+		struct PointLightDesc { Vec3 position; Vec3 diffuse; float range; };
+
+		const PointLightDesc descs[] =
+		{
+			{ Vec3(-140.f,  60.f, 180.f), Vec3(2.0f, 0.70f, 0.18f), 420.f }, // 주황
+			{ Vec3( 330.f,  40.f, 240.f), Vec3(0.20f, 0.60f, 1.8f), 420.f }, // 파랑
+			{ Vec3(  90.f, 250.f, 120.f), Vec3(1.2f, 0.25f, 1.1f),  380.f }, // 보라
+		};
+
+		for (const PointLightDesc& desc : descs)
+		{
+			shared_ptr<GameObject> light = make_shared<GameObject>();
+			light->AddComponent(make_shared<Transform>());
+			light->GetTransform()->SetLocalPosition(desc.position);
+			light->AddComponent(make_shared<Light>());
+			light->GetLight()->SetLightType(LIGHT_TYPE::POINT_LIGHT);
+			light->GetLight()->SetDiffuse(desc.diffuse);
+			light->GetLight()->SetAmbient(Vec3(0.f, 0.f, 0.f));
+			light->GetLight()->SetSpecular(desc.diffuse * 0.25f);
+			light->GetLight()->SetLightRange(desc.range);
+
+			scene->AddGameObject(light);
+		}
 	}
 #pragma endregion
 

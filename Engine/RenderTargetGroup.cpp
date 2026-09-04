@@ -21,7 +21,11 @@ void RenderTargetGroup::Create(RENDER_TARGET_GROUP_TYPE groupType, vector<Render
 
 	_rtvHeapSize = DEVICE->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 	_rtvHeapBegin = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	_dsvHeapBegin = _dsTexture->GetDSV()->GetCPUDescriptorHandleForHeapStart();
+
+	// 포스트프로세스 패스는 깊이 버퍼가 없다.
+	_dsvHeapBegin = {};
+	if (_dsTexture != nullptr)
+		_dsvHeapBegin = _dsTexture->GetDSV()->GetCPUDescriptorHandleForHeapStart();
 
 	for (uint32 i = 0; i < _rtCount; i++)
 	{
@@ -54,7 +58,8 @@ void RenderTargetGroup::OMSetRenderTargets(uint32 count, uint32 offset)
 	GRAPHICS_CMD_LIST->RSSetScissorRects(1, &rect);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_rtvHeapBegin, offset * _rtvHeapSize);
-	GRAPHICS_CMD_LIST->OMSetRenderTargets(count, &rtvHandle, FALSE/*1개*/, &_dsvHeapBegin);
+	D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle = (_dsTexture != nullptr) ? &_dsvHeapBegin : nullptr;
+	GRAPHICS_CMD_LIST->OMSetRenderTargets(count, &rtvHandle, FALSE/*1개*/, dsvHandle);
 }
 
 void RenderTargetGroup::OMSetRenderTargets()
@@ -65,7 +70,8 @@ void RenderTargetGroup::OMSetRenderTargets()
 	GRAPHICS_CMD_LIST->RSSetViewports(1, &vp);
 	GRAPHICS_CMD_LIST->RSSetScissorRects(1, &rect);
 
-	GRAPHICS_CMD_LIST->OMSetRenderTargets(_rtCount, &_rtvHeapBegin, TRUE/*다중*/, &_dsvHeapBegin);
+	D3D12_CPU_DESCRIPTOR_HANDLE* dsvHandle = (_dsTexture != nullptr) ? &_dsvHeapBegin : nullptr;
+	GRAPHICS_CMD_LIST->OMSetRenderTargets(_rtCount, &_rtvHeapBegin, TRUE/*다중*/, dsvHandle);
 }
 
 void RenderTargetGroup::ClearRenderTargetView(uint32 index)
@@ -73,7 +79,8 @@ void RenderTargetGroup::ClearRenderTargetView(uint32 index)
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(_rtvHeapBegin, index * _rtvHeapSize);
 	GRAPHICS_CMD_LIST->ClearRenderTargetView(rtvHandle, _rtVec[index].clearColor, 0, nullptr);
 
-	GRAPHICS_CMD_LIST->ClearDepthStencilView(_dsvHeapBegin, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
+	if (_dsTexture != nullptr)
+		GRAPHICS_CMD_LIST->ClearDepthStencilView(_dsvHeapBegin, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 }
 
 void RenderTargetGroup::ClearRenderTargetView()
@@ -86,7 +93,8 @@ void RenderTargetGroup::ClearRenderTargetView()
 		GRAPHICS_CMD_LIST->ClearRenderTargetView(rtvHandle, _rtVec[i].clearColor, 0, nullptr);
 	}
 
-	GRAPHICS_CMD_LIST->ClearDepthStencilView(_dsvHeapBegin, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
+	if (_dsTexture != nullptr)
+		GRAPHICS_CMD_LIST->ClearDepthStencilView(_dsvHeapBegin, D3D12_CLEAR_FLAG_DEPTH, 1.f, 0, 0, nullptr);
 }
 
 void RenderTargetGroup::WaitTargetToResource()
@@ -97,4 +105,14 @@ void RenderTargetGroup::WaitTargetToResource()
 void RenderTargetGroup::WaitResourceToTarget()
 {
 	GRAPHICS_CMD_LIST->ResourceBarrier(_rtCount, _resourceToTarget);
+}
+
+void RenderTargetGroup::WaitTargetToResource(uint32 index)
+{
+	GRAPHICS_CMD_LIST->ResourceBarrier(1, &_targetToResource[index]);
+}
+
+void RenderTargetGroup::WaitResourceToTarget(uint32 index)
+{
+	GRAPHICS_CMD_LIST->ResourceBarrier(1, &_resourceToTarget[index]);
 }

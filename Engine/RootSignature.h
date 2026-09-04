@@ -13,7 +13,9 @@ private:
 	void CreateComputeRootSignature();
 
 private:
-	D3D12_STATIC_SAMPLER_DESC	_samplerDesc; 
+	// s0 : Anisotropic + Wrap (기본)
+	// s1 : Linear + Clamp. 화면 전체를 훑는 패스가 가장자리에서 반대편을 물어오지 않게 한다
+	D3D12_STATIC_SAMPLER_DESC	_samplerDesc[2];
 	ComPtr<ID3D12RootSignature>	_graphicsRootSignature;	
 	ComPtr<ID3D12RootSignature>	_computeRootSignature;
 };

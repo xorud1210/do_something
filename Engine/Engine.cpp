@@ -175,17 +175,75 @@ void Engine::CreateRenderTargetGroups()
 	{
 		vector<RenderTarget> rtVec(RENDER_TARGET_LIGHTING_GROUP_MEMBER_COUNT);
 
+		// 조명은 여러 개가 겹쳐 쌓인다. UNORM 이면 두세 개만 겹쳐도 1 에서 잘려서
+		// 그 위로 얼마나 밝았는지가 사라지고 흰 덩어리만 남는다.
 		rtVec[0].target = GET_SINGLE(Resources)->CreateTexture(L"DiffuseLightTarget",
-			DXGI_FORMAT_R8G8B8A8_UNORM, _window.width, _window.height,
+			HDR_RENDER_TARGET_FORMAT, _window.width, _window.height,
 			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
 		rtVec[1].target = GET_SINGLE(Resources)->CreateTexture(L"SpecularLightTarget",
-			DXGI_FORMAT_R8G8B8A8_UNORM, _window.width, _window.height,
+			HDR_RENDER_TARGET_FORMAT, _window.width, _window.height,
 			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
 		_rtGroups[static_cast<uint8>(RENDER_TARGET_GROUP_TYPE::LIGHTING)] = make_shared<RenderTargetGroup>();
 		_rtGroups[static_cast<uint8>(RENDER_TARGET_GROUP_TYPE::LIGHTING)]->Create(RENDER_TARGET_GROUP_TYPE::LIGHTING, rtVec, dsTexture);
+	}
+
+	// HDR Group
+	// 조명 합성 결과와 포워드로 그리는 것들(스카이박스, 파티클)이 전부 여기 모인다.
+	// 톤매핑은 이 한 장을 읽어서 백버퍼에 내보낸다.
+	// 포워드 패스가 깊이 테스트를 해야 하므로 G-Buffer 와 같은 깊이 버퍼를 쓴다.
+	{
+		vector<RenderTarget> rtVec(RENDER_TARGET_HDR_GROUP_MEMBER_COUNT);
+
+		rtVec[0].target = GET_SINGLE(Resources)->CreateTexture(L"HDRTarget",
+			HDR_RENDER_TARGET_FORMAT, _window.width, _window.height,
+			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+
+		_rtGroups[static_cast<uint8>(RENDER_TARGET_GROUP_TYPE::HDR)] = make_shared<RenderTargetGroup>();
+		_rtGroups[static_cast<uint8>(RENDER_TARGET_GROUP_TYPE::HDR)]->Create(RENDER_TARGET_GROUP_TYPE::HDR, rtVec, dsTexture);
+	}
+
+	// Bloom Group
+	// 해상도를 낮춰서 블러를 돌린다. 같은 탭 수로 더 넓게 번지고, 픽셀 수도 줄어든다.
+	// 그룹마다 두 장인 것은 가로 블러 -> 세로 블러를 핑퐁으로 돌리기 위해서다.
+	// 화면 전체 사각형만 그리므로 깊이 버퍼는 없다(해상도도 안 맞는다).
+	{
+		const uint32 halfWidth = (_window.width > 2) ? _window.width / 2 : 1;
+		const uint32 halfHeight = (_window.height > 2) ? _window.height / 2 : 1;
+
+		vector<RenderTarget> rtVec(RENDER_TARGET_BLOOM_GROUP_MEMBER_COUNT);
+
+		for (uint32 i = 0; i < RENDER_TARGET_BLOOM_GROUP_MEMBER_COUNT; ++i)
+		{
+			rtVec[i].target = GET_SINGLE(Resources)->CreateTexture(L"BloomHalfTarget_" + std::to_wstring(i),
+				HDR_RENDER_TARGET_FORMAT, halfWidth, halfHeight,
+				CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+		}
+
+		_rtGroups[static_cast<uint8>(RENDER_TARGET_GROUP_TYPE::BLOOM_HALF)] = make_shared<RenderTargetGroup>();
+		_rtGroups[static_cast<uint8>(RENDER_TARGET_GROUP_TYPE::BLOOM_HALF)]->Create(RENDER_TARGET_GROUP_TYPE::BLOOM_HALF, rtVec, nullptr);
+	}
+
+	{
+		const uint32 quarterWidth = (_window.width > 4) ? _window.width / 4 : 1;
+		const uint32 quarterHeight = (_window.height > 4) ? _window.height / 4 : 1;
+
+		vector<RenderTarget> rtVec(RENDER_TARGET_BLOOM_GROUP_MEMBER_COUNT);
+
+		for (uint32 i = 0; i < RENDER_TARGET_BLOOM_GROUP_MEMBER_COUNT; ++i)
+		{
+			rtVec[i].target = GET_SINGLE(Resources)->CreateTexture(L"BloomQuarterTarget_" + std::to_wstring(i),
+				HDR_RENDER_TARGET_FORMAT, quarterWidth, quarterHeight,
+				CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+		}
+
+		_rtGroups[static_cast<uint8>(RENDER_TARGET_GROUP_TYPE::BLOOM_QUARTER)] = make_shared<RenderTargetGroup>();
+		_rtGroups[static_cast<uint8>(RENDER_TARGET_GROUP_TYPE::BLOOM_QUARTER)]->Create(RENDER_TARGET_GROUP_TYPE::BLOOM_QUARTER, rtVec, nullptr);
 	}
 }

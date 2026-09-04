@@ -72,6 +72,7 @@ Texture2D g_tex_4 : register(t4);
 
 StructuredBuffer<Matrix> g_mat_bone : register(t7);
 
-SamplerState g_sam_0 : register(s0);
+SamplerState g_sam_0 : register(s0); // Anisotropic + Wrap
+SamplerState g_sam_1 : register(s1); // Linear + Clamp. 화면 전체 패스용
 
 #endif
