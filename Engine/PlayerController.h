@@ -27,8 +27,11 @@ public:
 private:
 	// 등록된 모든 파츠에 같은 클립을 지시한다.
 	void PlayAll(const wstring& clipName, float fade, bool loop);
-	// 파츠 중 하나라도 재생이 끝났는지 (비루프 클립 판정용)
-	bool AnyPartFinished() const;
+
+	// 상체 레이어. 하체는 그대로 두고 상체만 다른 클립으로 덮어쓴다.
+	void PlayUpperAll(const wstring& clipName, float fade, bool loop);
+	void StopUpperAll(float fade);
+	bool UpperFinished() const;
 
 private:
 	vector<weak_ptr<GameObject>>	_parts;

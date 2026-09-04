@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "PlayerController.h"
 #include "GameObject.h"
 #include "Transform.h"
@@ -11,6 +11,9 @@ static const wstring CLIP_IDLE = L"idle";
 static const wstring CLIP_RUN = L"Run_Forward";
 static const wstring CLIP_ATTACK = L"Combat_1H_Attack";
 
+// 상체 레이어의 시작 본. 이 본 이하가 상체다.
+static const wstring UPPER_BODY_ROOT = L"spine_01";
+
 PlayerController::PlayerController()
 {
 }
@@ -21,8 +24,15 @@ PlayerController::~PlayerController()
 
 void PlayerController::AddPart(shared_ptr<GameObject> part)
 {
-	if (part)
-		_parts.push_back(part);
+	if (part == nullptr)
+		return;
+
+	_parts.push_back(part);
+
+	// 상체 마스크는 스켈레톤이 정해지는 시점(= 파츠가 붙는 시점)에 만든다.
+	shared_ptr<Animator> animator = part->GetAnimator();
+	if (animator)
+		animator->BuildUpperBodyMask(UPPER_BODY_ROOT);
 }
 
 void PlayerController::PlayAll(const wstring& clipName, float fade, bool loop)
@@ -47,7 +57,35 @@ void PlayerController::PlayAll(const wstring& clipName, float fade, bool loop)
 		_currentClip = clipName;
 }
 
-bool PlayerController::AnyPartFinished() const
+void PlayerController::PlayUpperAll(const wstring& clipName, float fade, bool loop)
+{
+	for (weak_ptr<GameObject>& weak : _parts)
+	{
+		shared_ptr<GameObject> part = weak.lock();
+		if (part == nullptr)
+			continue;
+
+		shared_ptr<Animator> animator = part->GetAnimator();
+		if (animator)
+			animator->PlayUpperLayer(clipName, fade, loop);
+	}
+}
+
+void PlayerController::StopUpperAll(float fade)
+{
+	for (weak_ptr<GameObject>& weak : _parts)
+	{
+		shared_ptr<GameObject> part = weak.lock();
+		if (part == nullptr)
+			continue;
+
+		shared_ptr<Animator> animator = part->GetAnimator();
+		if (animator)
+			animator->StopUpperLayer(fade);
+	}
+}
+
+bool PlayerController::UpperFinished() const
 {
 	for (const weak_ptr<GameObject>& weak : _parts)
 	{
@@ -56,7 +94,7 @@ bool PlayerController::AnyPartFinished() const
 			continue;
 
 		shared_ptr<Animator> animator = part->GetAnimator();
-		if (animator && animator->IsFinished())
+		if (animator && animator->IsUpperFinished())
 			return true;
 	}
 	return false;
@@ -79,16 +117,19 @@ void PlayerController::LateUpdate()
 
 	const bool moving = (move.LengthSquared() > 0.f);
 
-	// --- 공격 ---
-	// 비루프 클립이라 끝나면 스스로 이동/대기 상태로 돌아온다.
-	if (_attacking && AnyPartFinished())
+	// --- 공격: 상체 레이어 ---
+	// 하체는 그대로 달리거나 서 있고, 상체만 공격 모션을 덮어쓴다.
+	// 마스크가 spine_01 이하에만 걸려 있어서 "달리면서 공격"이 나온다.
+	if (_attacking && UpperFinished())
+	{
 		_attacking = false;
+		StopUpperAll(0.2f);
+	}
 
 	if (_attacking == false && INPUT->GetButtonDown(KEY_TYPE::LBUTTON))
 	{
 		_attacking = true;
-		_currentClip.clear();				// 같은 클립 재요청 무시를 우회
-		PlayAll(CLIP_ATTACK, 0.1f, false);
+		PlayUpperAll(CLIP_ATTACK, 0.12f, false);
 	}
 
 	// --- 이동 ---
@@ -107,7 +148,6 @@ void PlayerController::LateUpdate()
 		transform->SetLocalRotation(Vec3(0.f, _yaw, 0.f));
 	}
 
-	// --- 애니메이션 ---
-	if (_attacking == false)
-		PlayAll(moving ? CLIP_RUN : CLIP_IDLE, 0.25f, true);
+	// --- 하체(기본 레이어)는 이동 여부만 본다 ---
+	PlayAll(moving ? CLIP_RUN : CLIP_IDLE, 0.25f, true);
 }

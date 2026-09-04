@@ -95,6 +95,7 @@ enum class SRV_REGISTER : uint8
 	t8,
 	t9,
 	t10,	// Animator: bone parent index buffer
+	t11,	// Animator: per-bone layer mask (upper body)
 
 	END
 };

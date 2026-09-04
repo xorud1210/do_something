@@ -14,6 +14,7 @@ struct AnimFrameParams
 StructuredBuffer<AnimFrameParams>   g_bone_frame  : register(t8);
 StructuredBuffer<matrix>            g_offset      : register(t9);
 StructuredBuffer<int>               g_bone_parent : register(t10);
+StructuredBuffer<float>             g_bone_mask   : register(t11);
 RWStructuredBuffer<matrix>          g_final       : register(u0);
 
 // 본 하나의 포즈. 블렌딩은 행렬이 아니라 이 형태에서 해야 한다.
@@ -100,15 +101,36 @@ matrix SRTToMatrix(BoneSRT srt)
     return M;
 }
 
-// 두 채널을 섞어 본 하나의 로컬 행렬을 만든다.
-// 계층 재구성에서 조상마다 다시 부르게 되므로 함수로 뺐다.
+// 본 하나의 로컬 포즈를 만든다.
 //
-// Phase 4(상하체 분리)는 여기서 weight 를 본별 마스크로 바꾸기만 하면 된다.
-matrix GetBlendedBoneMatrix(int boneIdx, int boneCount, float weight)
+//   기본 레이어 : 전신. 채널 A/B 를 크로스페이드해서 만든다.
+//   상체 레이어 : 마스크가 0 이 아닌 본만. 역시 A/B 크로스페이드.
+//
+// 마스크는 본별 가중치라 "하체는 달리기, 상체는 공격" 같은 조합이 나온다.
+// 섞는 것은 반드시 SRT 공간에서 해야 한다. 계층 조립은 그 다음이다.
+matrix GetLayeredBoneMatrix(int boneIdx, int boneCount)
 {
-    BoneSRT a = SampleChannel(boneIdx, boneCount, g_vec4_0);
-    BoneSRT b = SampleChannel(boneIdx, boneCount, g_vec4_1);
-    return SRTToMatrix(BlendSRT(a, b, weight));
+    BoneSRT pose = BlendSRT(
+        SampleChannel(boneIdx, boneCount, g_vec4_0),
+        SampleChannel(boneIdx, boneCount, g_vec4_1),
+        g_float_0);
+
+    // g_float_2 는 상체 레이어의 전체 세기. 0 이면 마스크를 읽지도 않는다.
+    if (g_float_2 > 0.f)
+    {
+        float mask = g_bone_mask[boneIdx] * g_float_2;
+        if (mask > 0.f)
+        {
+            BoneSRT upper = BlendSRT(
+                SampleChannel(boneIdx, boneCount, g_vec4_2),
+                SampleChannel(boneIdx, boneCount, g_vec4_3),
+                g_float_1);
+
+            pose = BlendSRT(pose, upper, mask);
+        }
+    }
+
+    return SRTToMatrix(pose);
 }
 
 // 본 계층의 최대 깊이 안전 상한. 사람형 스켈레톤은 보통 10 안쪽이다.
@@ -118,9 +140,13 @@ matrix GetBlendedBoneMatrix(int boneIdx, int boneCount, float weight)
 // g_int_0   : BoneCount
 // g_int_3   : 1 이면 본 프레임이 부모 기준 로컬이라 계층을 다시 조립한다 (.bin)
 //             0 이면 이미 모델 공간으로 구워져 있다 (FBX)
-// g_vec4_0  : 채널 A (빠져나가는 클립) = (클립오프셋, 프레임, 다음프레임, 보간비율)
-// g_vec4_1  : 채널 B (들어오는 클립)   = 위와 동일
-// g_float_0 : A 와 B 사이 블렌드 가중치. 페이드 중이 아니면 1 이고 A == B 다.
+// g_vec4_0  : 기본 레이어 채널 A = (클립오프셋, 프레임, 다음프레임, 보간비율)
+// g_vec4_1  : 기본 레이어 채널 B
+// g_vec4_2  : 상체 레이어 채널 A
+// g_vec4_3  : 상체 레이어 채널 B
+// g_float_0 : 기본 레이어 크로스페이드 가중치 (페이드 중이 아니면 1, A == B)
+// g_float_1 : 상체 레이어 크로스페이드 가중치
+// g_float_2 : 상체 레이어 전체 세기. 0 이면 상체 레이어와 마스크를 건너뛴다.
 [numthreads(256, 1, 1)]
 void CS_Main(int3 threadIdx : SV_DispatchThreadID)
 {
@@ -129,9 +155,8 @@ void CS_Main(int3 threadIdx : SV_DispatchThreadID)
 
     int boneCount   = g_int_0;
     int localFrames = g_int_3;
-    float weight    = g_float_0;
 
-    matrix matBone = GetBlendedBoneMatrix(threadIdx.x, boneCount, weight);
+    matrix matBone = GetLayeredBoneMatrix(threadIdx.x, boneCount);
 
     if (localFrames == 1)
     {
@@ -149,7 +174,7 @@ void CS_Main(int3 threadIdx : SV_DispatchThreadID)
             if (parent < 0)
                 break;
 
-            matBone = mul(matBone, GetBlendedBoneMatrix(parent, boneCount, weight));
+            matBone = mul(matBone, GetLayeredBoneMatrix(parent, boneCount));
             parent = g_bone_parent[parent];
         }
     }

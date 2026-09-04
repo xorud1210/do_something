@@ -1,4 +1,4 @@
-﻿#include "pch.h"
+#include "pch.h"
 #include "Animator.h"
 #include "Timer.h"
 #include "Resources.h"
@@ -35,13 +35,33 @@ int32 Animator::FindClip(const wstring& name) const
 	return -1;
 }
 
-bool Animator::PlayByName(const wstring& name, float fadeDuration, bool loop)
+// ---------------------------------------------------------------------------
+// 재생 제어
+// ---------------------------------------------------------------------------
+
+bool Animator::StartClip(AnimLayer& layer, int32 clipIndex, float fadeDuration, bool loop)
 {
-	const int32 idx = FindClip(name);
-	if (idx < 0)
+	if (_animClips == nullptr || clipIndex < 0 || clipIndex >= static_cast<int32>(_animClips->size()))
 		return false;
 
-	Play(static_cast<uint32>(idx), fadeDuration, loop);
+	if (fadeDuration > 0.f)
+	{
+		layer.previous = layer.current;
+		layer.fadeElapsed = 0.f;
+		layer.fadeDuration = fadeDuration;
+	}
+	else
+	{
+		layer.fadeDuration = 0.f;
+	}
+
+	layer.current.clipIndex = clipIndex;
+	layer.current.updateTime = 0.f;
+	layer.current.frame = 0;
+	layer.current.nextFrame = 0;
+	layer.current.frameRatio = 0.f;
+	layer.current.loop = loop;
+	layer.finished = false;
 	return true;
 }
 
@@ -52,28 +72,111 @@ void Animator::Play(uint32 idx, float fadeDuration, bool loop)
 
 	// 같은 클립을 다시 요청하면 무시한다. 그렇지 않으면 입력이 들어오는 매 프레임
 	// 재생 위치가 0 으로 되감겨 애니메이션이 멈춘 것처럼 보인다.
-	if (static_cast<int32>(idx) == _current.clipIndex && _fadeDuration <= 0.f)
+	if (static_cast<int32>(idx) == _base.current.clipIndex && _base.IsFading() == false)
 		return;
 
-	if (fadeDuration > 0.f)
+	StartClip(_base, static_cast<int32>(idx), fadeDuration, loop);
+}
+
+bool Animator::PlayByName(const wstring& name, float fadeDuration, bool loop)
+{
+	const int32 idx = FindClip(name);
+	if (idx < 0)
+		return false;
+
+	Play(static_cast<uint32>(idx), fadeDuration, loop);
+	return true;
+}
+
+bool Animator::PlayUpperLayer(const wstring& clipName, float fadeDuration, bool loop)
+{
+	if (_boneMask == nullptr)
+		return false;
+
+	const int32 idx = FindClip(clipName);
+	if (idx < 0)
+		return false;
+
+	if (StartClip(_upper, idx, fadeDuration, loop) == false)
+		return false;
+
+	// 레이어 자체를 켠다. fadeDuration 동안 0 -> 1.
+	_layerTarget = 1.f;
+	_layerFadeSpeed = (fadeDuration > 0.f) ? (1.f / fadeDuration) : 1000.f;
+	return true;
+}
+
+void Animator::StopUpperLayer(float fadeDuration)
+{
+	_layerTarget = 0.f;
+	_layerFadeSpeed = (fadeDuration > 0.f) ? (1.f / fadeDuration) : 1000.f;
+}
+
+// ---------------------------------------------------------------------------
+// 상체 마스크
+// ---------------------------------------------------------------------------
+
+bool Animator::BuildUpperBodyMask(const wstring& rootBoneName, int32 featherBones)
+{
+	if (_bones == nullptr || _bones->empty())
+		return false;
+
+	const int32 boneCount = static_cast<int32>(_bones->size());
+
+	int32 rootIndex = -1;
+	for (int32 i = 0; i < boneCount; i++)
 	{
-		_previous = _current;
-		_fadeElapsed = 0.f;
-		_fadeDuration = fadeDuration;
+		if (_bones->at(i).boneName == rootBoneName)
+		{
+			rootIndex = i;
+			break;
+		}
 	}
-	else
+	if (rootIndex < 0)
+		return false;
+
+	vector<float> mask(boneCount, 0.f);
+
+	for (int32 i = 0; i < boneCount; i++)
 	{
-		_fadeDuration = 0.f;
+		// 이 본이 rootIndex 의 자손인지, 몇 단계 아래인지 센다.
+		int32 depth = 0;
+		int32 cursor = i;
+		bool isUpper = false;
+
+		while (cursor >= 0)
+		{
+			if (cursor == rootIndex)
+			{
+				isUpper = true;
+				break;
+			}
+			cursor = _bones->at(cursor).parentIdx;
+			depth++;
+
+			if (depth > boneCount)		// 순환 방어
+				break;
+		}
+
+		if (isUpper == false)
+			continue;
+
+		// 경계에서 뚝 끊기면 허리가 접힌 것처럼 보인다.
+		// root 부터 featherBones 개까지 0 -> 1 로 서서히 올린다.
+		if (featherBones <= 0)
+			mask[i] = 1.f;
+		else
+			mask[i] = std::clamp(static_cast<float>(depth + 1) / static_cast<float>(featherBones + 1), 0.f, 1.f);
 	}
 
-	_current.clipIndex = static_cast<int32>(idx);
-	_current.updateTime = 0.f;
-	_current.frame = 0;
-	_current.nextFrame = 0;
-	_current.frameRatio = 0.f;
-	_current.loop = loop;
-	_currentFinished = false;
+	_boneMask = make_shared<StructuredBuffer>();
+	_boneMask->Init(sizeof(float), static_cast<uint32>(mask.size()), mask.data());
+	return true;
 }
+
+// ---------------------------------------------------------------------------
+// 시간 진행
+// ---------------------------------------------------------------------------
 
 bool Animator::AdvanceChannel(AnimChannel& channel, float deltaTime)
 {
@@ -109,10 +212,24 @@ bool Animator::AdvanceChannel(AnimChannel& channel, float deltaTime)
 		channel.nextFrame = channel.frame + 1;
 
 	// 두 키프레임 사이의 보간 비율.
-	// (원래는 _frame - _frame 이라 항상 0 이었고 보간이 전혀 되지 않았다)
 	channel.frameRatio = std::clamp(exactFrame - static_cast<float>(channel.frame), 0.f, 1.f);
 
 	return finished;
+}
+
+void Animator::UpdateLayer(AnimLayer& layer, float deltaTime)
+{
+	layer.finished = AdvanceChannel(layer.current, deltaTime);
+
+	if (layer.IsFading())
+	{
+		// 빠져나가는 클립도 계속 돌려야 섞이는 동안 어색하지 않다.
+		AdvanceChannel(layer.previous, deltaTime);
+
+		layer.fadeElapsed += deltaTime;
+		if (layer.fadeElapsed >= layer.fadeDuration)
+			layer.fadeDuration = 0.f;
+	}
 }
 
 void Animator::FinalUpdate()
@@ -122,18 +239,24 @@ void Animator::FinalUpdate()
 
 	const float deltaTime = DELTA_TIME;
 
-	_currentFinished = AdvanceChannel(_current, deltaTime);
+	UpdateLayer(_base, deltaTime);
 
-	if (_fadeDuration > 0.f)
+	// 상체 레이어는 세기가 0 이 아닐 때만 돌린다.
+	if (_layerWeight > 0.f || _layerTarget > 0.f)
 	{
-		// 빠져나가는 클립도 계속 돌려야 섞이는 동안 어색하지 않다.
-		AdvanceChannel(_previous, deltaTime);
+		UpdateLayer(_upper, deltaTime);
 
-		_fadeElapsed += deltaTime;
-		if (_fadeElapsed >= _fadeDuration)
-			_fadeDuration = 0.f;
+		const float step = _layerFadeSpeed * deltaTime;
+		if (_layerWeight < _layerTarget)
+			_layerWeight = min(_layerWeight + step, _layerTarget);
+		else
+			_layerWeight = max(_layerWeight - step, _layerTarget);
 	}
 }
+
+// ---------------------------------------------------------------------------
+// GPU 전달
+// ---------------------------------------------------------------------------
 
 Vec4 Animator::PackChannel(const AnimChannel& channel)
 {
@@ -170,20 +293,30 @@ void Animator::PushData()
 	if (composeHierarchy)
 		mesh->GetBoneParentBuffer()->PushComputeSRVData(SRV_REGISTER::t10);
 
+	// 상체 레이어가 꺼져 있으면 마스크를 묶지 않는다. 셰이더는 레이어 세기가
+	// 0 이면 마스크를 아예 읽지 않는다.
+	const bool useLayer = (_boneMask != nullptr && _layerWeight > 0.001f);
+	if (useLayer)
+		_boneMask->PushComputeSRVData(SRV_REGISTER::t11);
+
 	_boneFinalMatrix->PushComputeUAVData(UAV_REGISTER::u0);
 
-	// 페이드 중이 아니면 두 채널을 같은 값으로 채우고 가중치를 1 로 둔다.
-	// 셰이더가 분기 없이 늘 같은 경로를 타게 하기 위함이다.
-	const bool fading = (_fadeDuration > 0.f);
-	const float blendWeight = fading
-		? std::clamp(_fadeElapsed / _fadeDuration, 0.f, 1.f)
-		: 1.f;
+	// 페이드 중이 아니면 두 채널을 같은 값으로 채운다. 셰이더가 분기 없이
+	// 늘 같은 경로를 타게 하기 위함이다.
+	const AnimChannel& baseA = _base.IsFading() ? _base.previous : _base.current;
+	const AnimChannel& upperA = _upper.IsFading() ? _upper.previous : _upper.current;
 
 	_computeMaterial->SetInt(0, boneCount);
 	_computeMaterial->SetInt(3, composeHierarchy ? 1 : 0);
-	_computeMaterial->SetVec4(0, PackChannel(fading ? _previous : _current));
-	_computeMaterial->SetVec4(1, PackChannel(_current));
-	_computeMaterial->SetFloat(0, blendWeight);
+
+	_computeMaterial->SetVec4(0, PackChannel(baseA));
+	_computeMaterial->SetVec4(1, PackChannel(_base.current));
+	_computeMaterial->SetVec4(2, PackChannel(upperA));
+	_computeMaterial->SetVec4(3, PackChannel(_upper.current));
+
+	_computeMaterial->SetFloat(0, _base.BlendWeight());
+	_computeMaterial->SetFloat(1, _upper.BlendWeight());
+	_computeMaterial->SetFloat(2, useLayer ? _layerWeight : 0.f);
 
 	const uint32 groupCount = (boneCount / 256) + 1;
 	_computeMaterial->Dispatch(groupCount, 1, 1);
