@@ -70,7 +70,8 @@ void Shader::CreateGraphicsShader(const wstring& path, ShaderInfo info, ShaderAr
 		_graphicsPipelineDesc.NumRenderTargets = RENDER_TARGET_G_BUFFER_GROUP_MEMBER_COUNT;
 		_graphicsPipelineDesc.RTVFormats[0] = DXGI_FORMAT_R32G32B32A32_FLOAT; // POSITION
 		_graphicsPipelineDesc.RTVFormats[1] = DXGI_FORMAT_R32G32B32A32_FLOAT; // NORMAL
-		_graphicsPipelineDesc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM; // COLOR
+		// 알베도는 선형 값을 sRGB 로 인코딩해 저장한다. 어두운 쪽 정밀도 때문이다.
+		_graphicsPipelineDesc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB; // COLOR
 		break;
 	case SHADER_TYPE::FORWARD:
 		_graphicsPipelineDesc.NumRenderTargets = 1;

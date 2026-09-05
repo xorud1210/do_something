@@ -73,7 +73,7 @@ void BillboardRenderer::SetDesc(const BillboardDesc& desc)
 	// 리소스의 원본을 그대로 쓰면 빌보드 묶음 둘이 서로의 바람 설정을 덮어쓴다.
 	_material = GET_SINGLE(Resources)->Get<Material>(L"Billboard")->Clone();
 
-	shared_ptr<Texture> texture = GET_SINGLE(Resources)->Load<Texture>(
+	shared_ptr<Texture> texture = GET_SINGLE(Resources)->LoadColorTexture(
 		_desc.textureKey, _desc.texturePath);
 	_material->SetTexture(0, texture);
 

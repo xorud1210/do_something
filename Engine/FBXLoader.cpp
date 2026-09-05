@@ -288,12 +288,13 @@ void FBXLoader::CreateTextures()
 		for (size_t j = 0; j < _meshes[i].materials.size(); j++)
 		{
 			// DiffuseTexture
+			// 디퓨즈만 색이다. 노멀맵과 스페큘러맵은 데이터라 선형으로 풀면 안 된다.
 			{
 				wstring relativePath = _meshes[i].materials[j].diffuseTexName.c_str();
 				wstring filename = fs::path(relativePath).filename();
 				wstring fullPath = _resourceDirectory + L"\\" + filename;
 				if (filename.empty() == false)
-					GET_SINGLE(Resources)->Load<Texture>(filename, fullPath);
+					GET_SINGLE(Resources)->LoadColorTexture(filename, fullPath);
 			}
 
 			// NormalTexture

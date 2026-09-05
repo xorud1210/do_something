@@ -36,6 +36,10 @@ public:
 		D3D12_RESOURCE_FLAGS resFlags = D3D12_RESOURCE_FLAG_NONE, Vec4 clearColor = Vec4());
 
 	shared_ptr<Texture> CreateTextureFromResource(const wstring& name, ComPtr<ID3D12Resource> tex2D);
+
+	// 색으로 쓰는 텍스처를 sRGB 로 읽어들인다.
+	// Load<Texture> 는 데이터 텍스처(노멀맵 등)용으로 남겨둔다.
+	shared_ptr<Texture> LoadColorTexture(const wstring& key, const wstring& path);
 	
 	shared_ptr<class MeshData> LoadFBX(const wstring& path);
 	shared_ptr<class MeshData> LoadBin(const wstring& path);

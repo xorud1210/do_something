@@ -119,6 +119,24 @@ float3 ACESFilm(float3 x)
 //
 // 해상도가 다른 블룸 두 장을 더하는 이유는 번지는 폭을 넓히기 위해서다.
 // 1/4 쪽이 같은 탭 수로 두 배 넓게 퍼진다.
+// 선형 -> sRGB 인코딩.
+//
+// 여기까지의 계산은 전부 선형 공간에서 했다. 모니터는 sRGB 곡선을 기대하므로
+// 마지막에 되돌려 줘야 한다. 이 단계가 없으면 화면이 어둡고 대비가 과해진다.
+//
+// pow(x, 1/2.2) 로 근사하는 경우가 많지만, 실제 sRGB 곡선은 아주 어두운 구간이
+// 직선이다. 그 구간을 곡선으로 처리하면 검은 쪽이 뭉개진다.
+//
+// 백버퍼를 _SRGB 포맷으로 만들면 하드웨어가 이걸 해준다. 여기서 직접 하는 것은
+// 톤매핑 뒤에 그리는 UI 디버그 창(G-Buffer 원본을 띄운다)까지 인코딩되면
+// 진단 도구로 못 쓰기 때문이다.
+float3 LinearToSRGB(float3 linearColor)
+{
+    float3 lo = linearColor * 12.92f;
+    float3 hi = 1.055f * pow(max(linearColor, 0.0001f), 1.f / 2.4f) - 0.055f;
+    return (linearColor <= 0.0031308f) ? lo : hi;
+}
+
 float4 PS_Tonemap(VS_OUT input) : SV_Target
 {
     float3 color = g_tex_0.Sample(g_sam_1, input.uv).rgb;
@@ -129,7 +147,8 @@ float4 PS_Tonemap(VS_OUT input) : SV_Target
     color += bloom * g_float_1;
     color *= g_float_0;
 
-    return float4(ACESFilm(color), 1.f);
+    // 톤매핑으로 0~1 에 담은 뒤 sRGB 로 인코딩한다. 순서를 바꾸면 안 된다.
+    return float4(LinearToSRGB(ACESFilm(color)), 1.f);
 }
 
 #endif

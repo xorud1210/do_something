@@ -171,8 +171,13 @@ void Engine::CreateRenderTargetGroups()
 			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 
+		// 알베도는 이제 선형 값이다. 8비트 UNORM 에 선형으로 담으면 어두운 쪽의
+		// 계단이 눈에 띈다 - 사람 눈은 어두운 구간의 차이에 민감한데 선형 저장은
+		// 그 구간에 비트를 적게 준다.
+		// _SRGB 포맷으로 두면 쓸 때 하드웨어가 sRGB 로 인코딩해 저장하고
+		// 읽을 때 다시 선형으로 풀어준다. 셰이더 코드는 그대로고 정밀도만 는다.
 		rtVec[2].target = GET_SINGLE(Resources)->CreateTexture(L"DiffuseTarget",
-			DXGI_FORMAT_R8G8B8A8_UNORM, _window.width, _window.height,
+			DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, _window.width, _window.height,
 			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 

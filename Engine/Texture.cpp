@@ -14,6 +14,11 @@ Texture::~Texture()
 
 void Texture::Load(const wstring& path)
 {
+	Load(path, false);
+}
+
+void Texture::Load(const wstring& path, bool srgb)
+{
 	// 파일 확장자 얻기
 	wstring ext = fs::path(path).extension();
 
@@ -23,6 +28,15 @@ void Texture::Load(const wstring& path)
 		::LoadFromTGAFile(path.c_str(), nullptr, _image);
 	else // png, jpg, jpeg, bmp
 		::LoadFromWICFile(path.c_str(), WIC_FLAGS_NONE, nullptr, _image);
+
+	// sRGB 계열 포맷으로 바꿔 만든다. 비트 배치는 그대로고 해석만 달라지므로
+	// 업로드할 데이터는 손댈 필요가 없다. 샘플링할 때 하드웨어가 선형으로 푼다.
+	if (srgb)
+	{
+		const DXGI_FORMAT srgbFormat = ::MakeSRGB(_image.GetMetadata().format);
+		if (srgbFormat != _image.GetMetadata().format)
+			_image.OverrideFormat(srgbFormat);
+	}
 
 	HRESULT hr = ::CreateTexture(DEVICE.Get(), _image.GetMetadata(), &_tex2D);
 	if (FAILED(hr))

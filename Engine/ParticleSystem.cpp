@@ -59,7 +59,7 @@ void ParticleSystem::CreateMaterials()
 
 	if (_desc.texturePath.empty() == false)
 	{
-		shared_ptr<Texture> tex = GET_SINGLE(Resources)->Load<Texture>(
+		shared_ptr<Texture> tex = GET_SINGLE(Resources)->LoadColorTexture(
 			_desc.textureKey, _desc.texturePath);
 		_material->SetTexture(0, tex);
 	}

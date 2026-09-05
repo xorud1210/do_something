@@ -155,7 +155,9 @@ private:
 	void	BuildBoneTable();			// <FrameNames> 순서로 _bones 구성 + 부모 해결
 	void	RemapSkinningIndices();		// 정점 본 인덱스를 _bones 공간으로 + 오프셋 배치
 
-	void	LoadTextureIfExists(const wstring& path);
+	// srgb 는 이 텍스처가 색인지 데이터인지다.
+	// 디퓨즈는 색이라 선형으로 풀어야 하고, 노멀맵은 숫자 그대로여야 한다.
+	void	LoadTextureIfExists(const wstring& path, bool srgb);
 	shared_ptr<class Texture> FindTexture(const wstring& path);
 	void	CreateTextures();
 	void	CreateMaterials();

@@ -139,7 +139,7 @@ wstring BinLoader::ResolveTexturePath(const wstring& rawName)
 	return _resourceDirectory + L"Textures/" + name + L".dds";
 }
 
-void BinLoader::LoadTextureIfExists(const wstring& path)
+void BinLoader::LoadTextureIfExists(const wstring& path, bool srgb)
 {
 	if (path.empty())
 		return;
@@ -150,7 +150,10 @@ void BinLoader::LoadTextureIfExists(const wstring& path)
 	if (GET_SINGLE(Resources)->Get<Texture>(key) != nullptr)
 		return;
 
-	GET_SINGLE(Resources)->Load<Texture>(key, path);
+	if (srgb)
+		GET_SINGLE(Resources)->LoadColorTexture(key, path);
+	else
+		GET_SINGLE(Resources)->Load<Texture>(key, path);
 }
 
 shared_ptr<Texture> BinLoader::FindTexture(const wstring& path)
@@ -168,9 +171,11 @@ void BinLoader::CreateTextures()
 	{
 		for (BinMaterialInfo& material : mesh.materials)
 		{
-			LoadTextureIfExists(ResolveTexturePath(material.diffuseTexName));
-			LoadTextureIfExists(ResolveTexturePath(material.normalTexName));
-			LoadTextureIfExists(ResolveTexturePath(material.specularTexName));
+			// 디퓨즈만 색이다. 노멀맵은 방향 벡터, 스페큘러맵은 반사율 계수라
+			// sRGB 곡선을 먹이면 값 자체가 틀어진다.
+			LoadTextureIfExists(ResolveTexturePath(material.diffuseTexName), true);
+			LoadTextureIfExists(ResolveTexturePath(material.normalTexName), false);
+			LoadTextureIfExists(ResolveTexturePath(material.specularTexName), false);
 		}
 	}
 }
