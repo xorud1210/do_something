@@ -4,13 +4,13 @@
 #include "params.fx"
 #include "utils.fx"
 
-// GPU íŒŒí‹°í´.
-//   CS_Main  : ìˆ˜ëª…/ì´ë™ì„ ì»´í“¨íŠ¸ì—ì„œ ê°±ì‹ í•œë‹¤. CPU ëŠ” ëª‡ ê°œ ì‚´ë¦´ì§€ë§Œ ì•Œë ¤ì¤€ë‹¤.
-//   VS -> GS : ì  í•˜ë‚˜ë¥¼ ë·° ê³µê°„ì—ì„œ ì‚¬ê°í˜•ìœ¼ë¡œ í¼ì¹œë‹¤. í•­ìƒ ì¹´ë©”ë¼ë¥¼ í–¥í•œë‹¤.
-//   PS       : ìˆ˜ëª…ì— ë”°ë¼ ìƒ‰ê³¼ ì•ŒíŒŒë¥¼ ë³´ê°„í•˜ê³ , ì§€ë©´ê³¼ ë§Œë‚˜ëŠ” ê²½ê³„ë¥¼ í˜ì´ë“œí•œë‹¤.
+// GPU ÆÄÆ¼Å¬.
+//   CS_Main  : ¼ö¸í/ÀÌµ¿À» ÄÄÇ»Æ®¿¡¼­ °»½ÅÇÑ´Ù. CPU ´Â ¸î °³ »ì¸±Áö¸¸ ¾Ë·ÁÁØ´Ù.
+//   VS -> GS : Á¡ ÇÏ³ª¸¦ ºä °ø°£¿¡¼­ »ç°¢ÇüÀ¸·Î ÆîÄ£´Ù. Ç×»ó Ä«¸Ş¶ó¸¦ ÇâÇÑ´Ù.
+//   PS       : ¼ö¸í¿¡ µû¶ó »ö°ú ¾ËÆÄ¸¦ º¸°£ÇÏ°í, Áö¸é°ú ¸¸³ª´Â °æ°è¸¦ ÆäÀÌµåÇÑ´Ù.
 //
-// ì‚¬ê°í˜•ì„ ë·° ê³µê°„ì—ì„œ ë§Œë“œëŠ” ê²ƒì´ ê³§ ë¹Œë³´ë“œë‹¤.
-// ë·° ê³µê°„ì—ì„œ XY ë¡œë§Œ ë²Œë¦¬ë©´ ì¹´ë©”ë¼ í‰ë©´ê³¼ í‰í–‰í•œ ì‚¬ê°í˜•ì´ ë˜ê¸° ë•Œë¬¸ì´ë‹¤.
+// »ç°¢ÇüÀ» ºä °ø°£¿¡¼­ ¸¸µå´Â °ÍÀÌ °ğ ºôº¸µå´Ù.
+// ºä °ø°£¿¡¼­ XY ·Î¸¸ ¹ú¸®¸é Ä«¸Ş¶ó Æò¸é°ú ÆòÇàÇÑ »ç°¢ÇüÀÌ µÇ±â ¶§¹®ÀÌ´Ù.
 
 struct Particle
 {
@@ -19,9 +19,9 @@ struct Particle
     float3  worldDir;
     float   lifeTime;
     int     alive;
-    float   rotation;       // í˜„ì¬ íšŒì „ê° (ë¼ë””ì•ˆ)
+    float   rotation;       // ÇöÀç È¸Àü°¢ (¶óµğ¾È)
     float   rotationSpeed;
-    float   seed;           // íŒŒí‹°í´ë§ˆë‹¤ ê³ ì •ëœ ë‚œìˆ˜. ìƒ‰ì„ ì¡°ê¸ˆì”© í”ë“œëŠ” ë° ì“´ë‹¤
+    float   seed;           // ÆÄÆ¼Å¬¸¶´Ù °íÁ¤µÈ ³­¼ö. »öÀ» Á¶±İ¾¿ Èçµå´Â µ¥ ¾´´Ù
 };
 
 StructuredBuffer<Particle> g_data : register(t9);
@@ -60,13 +60,13 @@ struct GS_OUT
 {
     float4 position : SV_Position;
     float2 uv : TEXCOORD;
-    float2 life : LIFE;      // x = ìˆ˜ëª… ë¹„ìœ¨, y = seed
-    float viewZ : VIEWZ;     // ì†Œí”„íŠ¸ íŒŒí‹°í´ìš©. ì´ ì¡°ê°ì˜ ë·° ê³µê°„ ê¹Šì´
+    float2 life : LIFE;      // x = ¼ö¸í ºñÀ², y = seed
+    float viewZ : VIEWZ;     // ¼ÒÇÁÆ® ÆÄÆ¼Å¬¿ë. ÀÌ Á¶°¢ÀÇ ºä °ø°£ ±íÀÌ
 };
 
 // GS_Main
-// g_float_0 : ì‹œì‘ í¬ê¸°
-// g_float_1 : ë í¬ê¸°
+// g_float_0 : ½ÃÀÛ Å©±â
+// g_float_1 : ³¡ Å©±â
 [maxvertexcount(6)]
 void GS_Main(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
 {
@@ -83,7 +83,7 @@ void GS_Main(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
     float ratio = saturate(g_data[id].curTime / max(g_data[id].lifeTime, 0.0001f));
     float scale = lerp(g_float_0, g_float_1, ratio) * 0.5f;
 
-    // íšŒì „. ë·° ê³µê°„ì—ì„œ XY ë¥¼ ëŒë¦¬ë¯€ë¡œ í™”ë©´ ì•ˆì—ì„œ ë„ëŠ” ê²ƒì²˜ëŸ¼ ë³´ì¸ë‹¤.
+    // È¸Àü. ºä °ø°£¿¡¼­ XY ¸¦ µ¹¸®¹Ç·Î È­¸é ¾È¿¡¼­ µµ´Â °ÍÃ³·³ º¸ÀÎ´Ù.
     float s, c;
     sincos(g_data[id].rotation, s, c);
 
@@ -124,14 +124,14 @@ void GS_Main(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
     outputStream.RestartStrip();
 }
 
-// PS ê³µí†µ
-// g_tex_0   : íŒŒí‹°í´ í…ìŠ¤ì²˜
-// g_tex_1   : G-Buffer position (ë·° ê³µê°„). ì†Œí”„íŠ¸ íŒŒí‹°í´ìš©
-// g_float_2 : ë°œê´‘ ì„¸ê¸°. 1 ë³´ë‹¤ í¬ë©´ HDR ë²”ìœ„ë¡œ ì˜¬ë¼ê°€ ë¸”ë£¸ì´ ë¬¸ë‹¤
-// g_float_3 : ì†Œí”„íŠ¸ í˜ì´ë“œ ê±°ë¦¬. 0 ì´ë©´ ëˆë‹¤
-// g_vec2_0  : ë Œë”íƒ€ê²Ÿ í•´ìƒë„
-// g_vec4_0  : ì‹œì‘ ìƒ‰ (rgba)
-// g_vec4_1  : ë ìƒ‰ (rgba)
+// PS °øÅë
+// g_tex_0   : ÆÄÆ¼Å¬ ÅØ½ºÃ³
+// g_tex_1   : G-Buffer position (ºä °ø°£). ¼ÒÇÁÆ® ÆÄÆ¼Å¬¿ë
+// g_float_2 : ¹ß±¤ ¼¼±â. 1 º¸´Ù Å©¸é HDR ¹üÀ§·Î ¿Ã¶ó°¡ ºí·ëÀÌ ¹®´Ù
+// g_float_3 : ¼ÒÇÁÆ® ÆäÀÌµå °Å¸®. 0 ÀÌ¸é ²ö´Ù
+// g_vec2_0  : ·»´õÅ¸°Ù ÇØ»óµµ
+// g_vec4_0  : ½ÃÀÛ »ö (rgba)
+// g_vec4_1  : ³¡ »ö (rgba)
 float4 SampleParticle(GS_OUT input)
 {
     float4 tex = g_tex_0.Sample(g_sam_0, input.uv);
@@ -139,18 +139,18 @@ float4 SampleParticle(GS_OUT input)
 
     float4 color = tex * grad;
 
-    // íŒŒí‹°í´ë§ˆë‹¤ ë°ê¸°ë¥¼ ì¡°ê¸ˆì”© í”ë“¤ì–´ ì¤€ë‹¤. ì „ë¶€ ë˜‘ê°™ìœ¼ë©´ íŒë°•ì´ë¡œ ë³´ì¸ë‹¤.
+    // ÆÄÆ¼Å¬¸¶´Ù ¹à±â¸¦ Á¶±İ¾¿ Èçµé¾î ÁØ´Ù. ÀüºÎ ¶È°°À¸¸é ÆÇ¹ÚÀÌ·Î º¸ÀÎ´Ù.
     color.rgb *= lerp(0.75f, 1.25f, input.life.y);
 
-    // ì†Œí”„íŠ¸ íŒŒí‹°í´.
-    // ì‚¬ê°í˜•ì´ ì§€ë©´ì„ ëš«ê³  ë“¤ì–´ê°€ë©´ êµì°¨ì„ ì´ ì¹¼ê°™ì´ ìƒê¸´ë‹¤.
-    // ë’¤ì— ìˆëŠ” ì‹¤ì œ ë¬¼ì²´ì™€ì˜ ê¹Šì´ ì°¨ê°€ ì‘ì„ìˆ˜ë¡ íˆ¬ëª…í•˜ê²Œ ë§Œë“¤ì–´ ê·¸ ì„ ì„ ì—†ì•¤ë‹¤.
+    // ¼ÒÇÁÆ® ÆÄÆ¼Å¬.
+    // »ç°¢ÇüÀÌ Áö¸éÀ» ¶Õ°í µé¾î°¡¸é ±³Â÷¼±ÀÌ Ä®°°ÀÌ »ı±ä´Ù.
+    // µÚ¿¡ ÀÖ´Â ½ÇÁ¦ ¹°Ã¼¿ÍÀÇ ±íÀÌ Â÷°¡ ÀÛÀ»¼ö·Ï Åõ¸íÇÏ°Ô ¸¸µé¾î ±× ¼±À» ¾ø¾Ø´Ù.
     if (g_float_3 > 0.f && g_tex_on_1 == 1)
     {
         float2 screenUV = input.position.xy / g_vec2_0;
         float sceneZ = g_tex_1.SampleLevel(g_sam_1, screenUV, 0).z;
 
-        // position íƒ€ê²Ÿì€ í•˜ëŠ˜ì²˜ëŸ¼ ì•„ë¬´ê²ƒë„ ì—†ëŠ” ê³³ì—ì„œ 0 ì´ë‹¤. ê·¸ë•ŒëŠ” í˜ì´ë“œí•˜ì§€ ì•ŠëŠ”ë‹¤.
+        // position Å¸°ÙÀº ÇÏ´ÃÃ³·³ ¾Æ¹«°Íµµ ¾ø´Â °÷¿¡¼­ 0 ÀÌ´Ù. ±×¶§´Â ÆäÀÌµåÇÏÁö ¾Ê´Â´Ù.
         if (sceneZ > 0.f)
             color.a *= saturate((sceneZ - input.viewZ) / g_float_3);
     }
@@ -158,7 +158,7 @@ float4 SampleParticle(GS_OUT input)
     return color;
 }
 
-// ì•ŒíŒŒ ë¸”ë Œë”©ìš©. rgb ì™€ a ë¥¼ ë¶„ë¦¬í•´ì„œ ë‚¸ë‹¤.
+// ¾ËÆÄ ºí·»µù¿ë. rgb ¿Í a ¸¦ ºĞ¸®ÇØ¼­ ³½´Ù.
 float4 PS_Main(GS_OUT input) : SV_Target
 {
     float4 color = SampleParticle(input);
@@ -166,7 +166,7 @@ float4 PS_Main(GS_OUT input) : SV_Target
     return color;
 }
 
-// ê°€ì‚° ë¸”ë Œë”©ìš©. dest += src.rgb ë¼ì„œ ì•ŒíŒŒê°€ rgb ì— ë¯¸ë¦¬ ê³±í•´ì ¸ ìˆì–´ì•¼ í•œë‹¤.
+// °¡»ê ºí·»µù¿ë. dest += src.rgb ¶ó¼­ ¾ËÆÄ°¡ rgb ¿¡ ¹Ì¸® °öÇØÁ® ÀÖ¾î¾ß ÇÑ´Ù.
 float4 PS_Additive(GS_OUT input) : SV_Target
 {
     float4 color = SampleParticle(input);
@@ -182,20 +182,20 @@ struct ComputeShared
 RWStructuredBuffer<Particle> g_particle : register(u0);
 RWStructuredBuffer<ComputeShared> g_shared : register(u1);
 
-// ì´ë¯¸í„° ëª¨ì–‘
+// ÀÌ¹ÌÅÍ ¸ğ¾ç
 #define EMITTER_POINT   0
 #define EMITTER_SPHERE  1
 #define EMITTER_BOX     2
 #define EMITTER_CONE    3
 
 // CS_Main
-// g_int_0  : ìµœëŒ€ ê°œìˆ˜ (ìŠ¤ë ˆë“œ ê·¸ë£¹ í•˜ë‚˜ì— ë§ì¶° 1024 ì´í•˜)
-// g_int_1  : ì´ë²ˆ í”„ë ˆì„ì— ì‚´ë¦´ ê°œìˆ˜
-// g_int_2  : ì´ë¯¸í„° ëª¨ì–‘
+// g_int_0  : ÃÖ´ë °³¼ö (½º·¹µå ±×·ì ÇÏ³ª¿¡ ¸ÂÃç 1024 ÀÌÇÏ)
+// g_int_1  : ÀÌ¹ø ÇÁ·¹ÀÓ¿¡ »ì¸± °³¼ö
+// g_int_2  : ÀÌ¹ÌÅÍ ¸ğ¾ç
 // g_vec2_1 : (deltaTime, accTime)
-// g_vec4_0 : (ìµœì†Œ ìˆ˜ëª…, ìµœëŒ€ ìˆ˜ëª…, ìµœì†Œ ì†ë„, ìµœëŒ€ ì†ë„)
-// g_vec4_1 : (ì´ë¯¸í„° ë°˜ì§€ë¦„, ì½˜ ê°ë„ cos, ê°ì† ê³„ìˆ˜, ìµœëŒ€ íšŒì „ ì†ë„)
-// g_vec4_2 : ì¤‘ë ¥ (xyz)
+// g_vec4_0 : (ÃÖ¼Ò ¼ö¸í, ÃÖ´ë ¼ö¸í, ÃÖ¼Ò ¼Óµµ, ÃÖ´ë ¼Óµµ)
+// g_vec4_1 : (ÀÌ¹ÌÅÍ ¹İÁö¸§, ÄÜ °¢µµ cos, °¨¼Ó °è¼ö, ÃÖ´ë È¸Àü ¼Óµµ)
+// g_vec4_2 : Áß·Â (xyz)
 [numthreads(1024, 1, 1)]
 void CS_Main(int3 threadIndex : SV_DispatchThreadID)
 {
@@ -226,7 +226,7 @@ void CS_Main(int3 threadIndex : SV_DispatchThreadID)
 
     if (g_particle[threadIndex.x].alive == 0)
     {
-        // ì£½ì–´ ìˆëŠ” ìŠ¬ë¡¯ë¼ë¦¬ "ì´ë²ˆì— ì‚´ì•„ë‚  ìë¦¬"ë¥¼ ë¨¼ì € ì¡ëŠ” ê²½ìŸì„ í•œë‹¤.
+        // Á×¾î ÀÖ´Â ½½·Ô³¢¸® "ÀÌ¹ø¿¡ »ì¾Æ³¯ ÀÚ¸®"¸¦ ¸ÕÀú Àâ´Â °æÀïÀ» ÇÑ´Ù.
         while (true)
         {
             int remaining = g_shared[0].addCount;
@@ -254,7 +254,7 @@ void CS_Main(int3 threadIndex : SV_DispatchThreadID)
             float r3 = Rand(float2(x * accTime * accTime, accTime * accTime));
             float r4 = Rand(float2(r1 + r2, r3));
 
-            // Rand ëŠ” [0.5, 1] ì„ ì¤€ë‹¤. [-1, 1] ë¡œ í¸ë‹¤.
+            // Rand ´Â [0.5, 1] À» ÁØ´Ù. [-1, 1] ·Î Æí´Ù.
             float3 noise = float3(2 * r1 - 1, 2 * r2 - 1, 2 * r3 - 1);
             float3 unit = (noise - 0.5f) * 2.f;
             float3 dir = normalize(unit + 0.0001f);
@@ -263,7 +263,7 @@ void CS_Main(int3 threadIndex : SV_DispatchThreadID)
 
             if (shape == EMITTER_SPHERE)
             {
-                // ë°˜ì§€ë¦„ ì•ˆìª½ì— ê³ ë¥´ê²Œ. ì„¸ì œê³±ê·¼ì„ ì·¨í•´ì•¼ ë¶€í”¼ì— ê· ì¼í•´ì§„ë‹¤.
+                // ¹İÁö¸§ ¾ÈÂÊ¿¡ °í¸£°Ô. ¼¼Á¦°ö±ÙÀ» ÃëÇØ¾ß ºÎÇÇ¿¡ ±ÕÀÏÇØÁø´Ù.
                 spawnPos = dir * radius * pow(saturate(r4), 1.f / 3.f);
             }
             else if (shape == EMITTER_BOX)
@@ -272,7 +272,7 @@ void CS_Main(int3 threadIndex : SV_DispatchThreadID)
             }
             else if (shape == EMITTER_CONE)
             {
-                // ë°”ë‹¥ì˜ ì›ì—ì„œ íƒœìš°ê³ , ë°©í–¥ì€ ìœ„ìª½ ì½˜ ì•ˆìœ¼ë¡œ ì œí•œí•œë‹¤.
+                // ¹Ù´ÚÀÇ ¿ø¿¡¼­ ÅÂ¿ì°í, ¹æÇâÀº À§ÂÊ ÄÜ ¾ÈÀ¸·Î Á¦ÇÑÇÑ´Ù.
                 spawnPos = float3(unit.x, 0.f, unit.z) * radius * sqrt(saturate(r4));
 
                 float cosTheta = lerp(1.f, coneCos, saturate(r1));
@@ -299,7 +299,7 @@ void CS_Main(int3 threadIndex : SV_DispatchThreadID)
             return;
         }
 
-        // worldDir ì„ ë°©í–¥ì´ ì•„ë‹ˆë¼ ì†ë„ë¡œ ì“´ë‹¤. ì¤‘ë ¥ê³¼ ê°ì†ì´ ì—¬ê¸° ëˆ„ì ëœë‹¤.
+        // worldDir À» ¹æÇâÀÌ ¾Æ´Ï¶ó ¼Óµµ·Î ¾´´Ù. Áß·Â°ú °¨¼ÓÀÌ ¿©±â ´©ÀûµÈ´Ù.
         float3 velocity = g_particle[threadIndex.x].worldDir;
         velocity += gravity * deltaTime;
         velocity *= saturate(1.f - drag * deltaTime);

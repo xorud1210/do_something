@@ -73,7 +73,7 @@ Texture2D g_tex_4 : register(t4);
 StructuredBuffer<Matrix> g_mat_bone : register(t7);
 
 SamplerState g_sam_0 : register(s0); // Anisotropic + Wrap
-SamplerState g_sam_1 : register(s1); // Linear + Clamp. í™”ë©´ ì „ì²´ íŒ¨ìŠ¤ìš©
-SamplerState g_sam_2 : register(s2); // Point + Clamp. ì…°ë„ìš° ë§µ ë¹„êµìš©
+SamplerState g_sam_1 : register(s1); // Linear + Clamp. È­¸é ÀüÃ¼ ÆĞ½º¿ë
+SamplerState g_sam_2 : register(s2); // Point + Clamp. ¼Îµµ¿ì ¸Ê ºñ±³¿ë
 
 #endif

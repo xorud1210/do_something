@@ -15,10 +15,23 @@ StructuredBuffer<AnimFrameParams>   g_bone_frame  : register(t8);
 StructuredBuffer<matrix>            g_offset      : register(t9);
 StructuredBuffer<int>               g_bone_parent : register(t10);
 StructuredBuffer<float>             g_bone_mask   : register(t11);
+
+// ÀÌ¹ø ÇÁ·¹ÀÓ¿¡ ¼¯À» Ã¤³Îµé.
+// Ã¤³Î ÇÏ³ª = Å¬¸³ ÇÏ³ª¸¦ Æ¯Á¤ ÇÁ·¹ÀÓ¿¡¼­ ÀĞÀ¸¶ó´Â Áö½Ã + ±× °¡ÁßÄ¡.
+// ·¹ÀÌ¾î ¾ÈÀÇ Å©·Î½ºÆäÀÌµå±îÁö CPU °¡ °¡ÁßÄ¡¿¡ ¹Ì¸® °öÇØ¼­ ³Ñ±â¹Ç·Î,
+// ¼ÎÀÌ´õ´Â "°¡ÁßÄ¡´ë·Î ´õÇÏ±â" ÇÏ³ª¸¸ ÇÏ¸é µÈ´Ù.
+struct AnimChannel
+{
+    float4  frame;      // (Å¬¸³ ½ÃÀÛ ¿ÀÇÁ¼Â, ÇÁ·¹ÀÓ, ´ÙÀ½ ÇÁ·¹ÀÓ, º¸°£ºñÀ²)
+    float   weight;
+    float3  padding;
+};
+
+StructuredBuffer<AnimChannel>       g_anim_channel : register(t12);
 RWStructuredBuffer<matrix>          g_final       : register(u0);
 
-// ë³¸ í•˜ë‚˜ì˜ í¬ì¦ˆ. ë¸”ë Œë”©ì€ í–‰ë ¬ì´ ì•„ë‹ˆë¼ ì´ í˜•íƒœì—ì„œ í•´ì•¼ í•œë‹¤.
-// í–‰ë ¬ì„ ì„ í˜• ë³´ê°„í•˜ë©´ íšŒì „ì´ ì°Œê·¸ëŸ¬ì§„ë‹¤.
+// º» ÇÏ³ªÀÇ Æ÷Áî. ºí·»µùÀº Çà·ÄÀÌ ¾Æ´Ï¶ó ÀÌ ÇüÅÂ¿¡¼­ ÇØ¾ß ÇÑ´Ù.
+// Çà·ÄÀ» ¼±Çü º¸°£ÇÏ¸é È¸ÀüÀÌ Âî±×·¯Áø´Ù.
 struct BoneSRT
 {
     float3 scale;
@@ -26,11 +39,11 @@ struct BoneSRT
     float3 translation;
 };
 
-// í•œ ì±„ë„(= ì¬ìƒ ì¤‘ì¸ í´ë¦½ í•˜ë‚˜)ì—ì„œ ë³¸ í•˜ë‚˜ì˜ í¬ì¦ˆë¥¼ ë½‘ëŠ”ë‹¤.
-//   channel = (í´ë¦½ ì‹œì‘ ì˜¤í”„ì…‹, í˜„ì¬ í”„ë ˆì„, ë‹¤ìŒ í”„ë ˆì„, í”„ë ˆì„ ê°„ ë³´ê°„ë¹„ìœ¨)
+// ÇÑ Ã¤³Î(= Àç»ı ÁßÀÎ Å¬¸³ ÇÏ³ª)¿¡¼­ º» ÇÏ³ªÀÇ Æ÷Áî¸¦ »Ì´Â´Ù.
+//   channel = (Å¬¸³ ½ÃÀÛ ¿ÀÇÁ¼Â, ÇöÀç ÇÁ·¹ÀÓ, ´ÙÀ½ ÇÁ·¹ÀÓ, ÇÁ·¹ÀÓ °£ º¸°£ºñÀ²)
 //
-// ëª¨ë“  í´ë¦½ì´ í•œ ë²„í¼ì— ì´ì–´ë¶™ì–´ ìˆì–´ì„œ í´ë¦½ ì˜¤í”„ì…‹ì„ ë”í•´ ì ‘ê·¼í•œë‹¤.
-// í´ë¦½ ë‚´ë¶€ ë°°ì¹˜ëŠ” [frame][bone] ì´ë¯€ë¡œ boneCount * frame + bone.
+// ¸ğµç Å¬¸³ÀÌ ÇÑ ¹öÆÛ¿¡ ÀÌ¾îºÙ¾î ÀÖ¾î¼­ Å¬¸³ ¿ÀÇÁ¼ÂÀ» ´õÇØ Á¢±ÙÇÑ´Ù.
+// Å¬¸³ ³»ºÎ ¹èÄ¡´Â [frame][bone] ÀÌ¹Ç·Î boneCount * frame + bone.
 BoneSRT SampleChannel(int boneIdx, int boneCount, float4 channel)
 {
     int clipOffset = (int) channel.x;
@@ -44,7 +57,7 @@ BoneSRT SampleChannel(int boneIdx, int boneCount, float4 channel)
     float4 q0 = g_bone_frame[i0].rotation;
     float4 q1 = g_bone_frame[i1].rotation;
 
-    // ìµœë‹¨ ê²½ë¡œë¡œ ëŒë„ë¡ ë¶€í˜¸ë¥¼ ë§ì¶˜ë‹¤.
+    // ÃÖ´Ü °æ·Î·Î µ¹µµ·Ï ºÎÈ£¸¦ ¸ÂÃá´Ù.
     if (dot(q0, q1) < 0.f)
         q1 = -q1;
 
@@ -55,7 +68,7 @@ BoneSRT SampleChannel(int boneIdx, int boneCount, float4 channel)
     return result;
 }
 
-// ë‘ í¬ì¦ˆë¥¼ ì„ëŠ”ë‹¤. weight 0 ì´ë©´ a, 1 ì´ë©´ b.
+// µÎ Æ÷Áî¸¦ ¼¯´Â´Ù. weight 0 ÀÌ¸é a, 1 ÀÌ¸é b.
 BoneSRT BlendSRT(BoneSRT a, BoneSRT b, float weight)
 {
     float4 qb = b.rotation;
@@ -69,7 +82,7 @@ BoneSRT BlendSRT(BoneSRT a, BoneSRT b, float weight)
     return result;
 }
 
-// ì¿¼í„°ë‹ˆì–¸ -> íšŒì „í–‰ë ¬ (í–‰ë²¡í„° ê·œì•½, v' = v * M)
+// ÄõÅÍ´Ï¾ğ -> È¸ÀüÇà·Ä (Çàº¤ÅÍ ±Ô¾à, v' = v * M)
 matrix SRTToMatrix(BoneSRT srt)
 {
     float x = srt.rotation.x, y = srt.rotation.y, z = srt.rotation.z, w = srt.rotation.w;
@@ -101,31 +114,81 @@ matrix SRTToMatrix(BoneSRT srt)
     return M;
 }
 
-// ë³¸ í•˜ë‚˜ì˜ ë¡œì»¬ í¬ì¦ˆë¥¼ ë§Œë“ ë‹¤.
+// Ã¤³Î ¿©·¯ °³¸¦ °¡ÁßÄ¡´ë·Î ÇÏ³ªÀÇ Æ÷Áî·Î ´©ÀûÇÑ´Ù.
 //
-//   ê¸°ë³¸ ë ˆì´ì–´ : ì „ì‹ . ì±„ë„ A/B ë¥¼ í¬ë¡œìŠ¤í˜ì´ë“œí•´ì„œ ë§Œë“ ë‹¤.
-//   ìƒì²´ ë ˆì´ì–´ : ë§ˆìŠ¤í¬ê°€ 0 ì´ ì•„ë‹Œ ë³¸ë§Œ. ì—­ì‹œ A/B í¬ë¡œìŠ¤í˜ì´ë“œ.
+// 2D ºí·»µå ½ºÆäÀÌ½º´Â ÇÑ ½ÃÁ¡¿¡ Å¬¸³ ¼­³Ê °³°¡ µ¿½Ã¿¡ ÇÊ¿äÇÏ´Ù.
+// °íÁ¤ ½½·Ô µÎ °³·Î´Â ´ãÀ» ¼ö ¾ø¾î¼­ °³¼ö¸¦ ·±Å¸ÀÓ¿¡ ¹Ş´Â´Ù.
+BoneSRT AccumulateChannels(int boneIdx, int boneCount, int start, int count)
+{
+    BoneSRT result;
+    result.scale = float3(0.f, 0.f, 0.f);
+    result.rotation = float4(0.f, 0.f, 0.f, 0.f);
+    result.translation = float3(0.f, 0.f, 0.f);
+
+    float total = 0.f;
+    float4 refRotation = float4(0.f, 0.f, 0.f, 1.f);
+    bool first = true;
+
+    for (int i = 0; i < count; ++i)
+    {
+        float weight = g_anim_channel[start + i].weight;
+        if (weight <= 0.0001f)
+            continue;
+
+        BoneSRT sample = SampleChannel(boneIdx, boneCount, g_anim_channel[start + i].frame);
+
+        // q ¿Í -q ´Â °°Àº È¸ÀüÀÌ´Ù. ºÎÈ£°¡ ¾ù°¥¸° Ã¤·Î ´õÇÏ¸é ¼­·Î »ó¼âµÇ¾î
+        // ÀÚ¼¼°¡ ¹«³ÊÁø´Ù. ¸ÕÀú µé¾î¿Â Ã¤³ÎÀ» ±âÁØÀ¸·Î ºÎÈ£¸¦ ¸ÂÃá´Ù.
+        if (first)
+        {
+            refRotation = sample.rotation;
+            first = false;
+        }
+        else if (dot(refRotation, sample.rotation) < 0.f)
+        {
+            sample.rotation = -sample.rotation;
+        }
+
+        result.scale += sample.scale * weight;
+        result.translation += sample.translation * weight;
+        result.rotation += sample.rotation * weight;
+        total += weight;
+    }
+
+    if (total > 0.0001f)
+    {
+        result.scale /= total;
+        result.translation /= total;
+        result.rotation = normalize(result.rotation);
+    }
+    else
+    {
+        result.scale = float3(1.f, 1.f, 1.f);
+        result.rotation = float4(0.f, 0.f, 0.f, 1.f);
+        result.translation = float3(0.f, 0.f, 0.f);
+    }
+
+    return result;
+}
+
+// º» ÇÏ³ªÀÇ ·ÎÄÃ Æ÷Áî¸¦ ¸¸µç´Ù.
 //
-// ë§ˆìŠ¤í¬ëŠ” ë³¸ë³„ ê°€ì¤‘ì¹˜ë¼ "í•˜ì²´ëŠ” ë‹¬ë¦¬ê¸°, ìƒì²´ëŠ” ê³µê²©" ê°™ì€ ì¡°í•©ì´ ë‚˜ì˜¨ë‹¤.
-// ì„ëŠ” ê²ƒì€ ë°˜ë“œì‹œ SRT ê³µê°„ì—ì„œ í•´ì•¼ í•œë‹¤. ê³„ì¸µ ì¡°ë¦½ì€ ê·¸ ë‹¤ìŒì´ë‹¤.
+//   ±âº» ·¹ÀÌ¾î : Àü½Å. Ã¤³Î [0, g_int_1) À» ´©ÀûÇÑ´Ù.
+//   »óÃ¼ ·¹ÀÌ¾î : ¸¶½ºÅ©°¡ 0 ÀÌ ¾Æ´Ñ º»¸¸. Ã¤³Î [g_int_1, g_int_1 + g_int_2).
+//
+// ¸¶½ºÅ©´Â º»º° °¡ÁßÄ¡¶ó "ÇÏÃ¼´Â ´Ş¸®±â, »óÃ¼´Â °ø°İ" °°Àº Á¶ÇÕÀÌ ³ª¿Â´Ù.
+// ¼¯´Â °ÍÀº ¹İµå½Ã SRT °ø°£¿¡¼­ ÇØ¾ß ÇÑ´Ù. °èÃş Á¶¸³Àº ±× ´ÙÀ½ÀÌ´Ù.
 matrix GetLayeredBoneMatrix(int boneIdx, int boneCount)
 {
-    BoneSRT pose = BlendSRT(
-        SampleChannel(boneIdx, boneCount, g_vec4_0),
-        SampleChannel(boneIdx, boneCount, g_vec4_1),
-        g_float_0);
+    BoneSRT pose = AccumulateChannels(boneIdx, boneCount, 0, g_int_1);
 
-    // g_float_2 ëŠ” ìƒì²´ ë ˆì´ì–´ì˜ ì „ì²´ ì„¸ê¸°. 0 ì´ë©´ ë§ˆìŠ¤í¬ë¥¼ ì½ì§€ë„ ì•ŠëŠ”ë‹¤.
-    if (g_float_2 > 0.f)
+    // g_float_2 ´Â »óÃ¼ ·¹ÀÌ¾îÀÇ ÀüÃ¼ ¼¼±â. 0 ÀÌ¸é ¸¶½ºÅ©¸¦ ÀĞÁöµµ ¾Ê´Â´Ù.
+    if (g_float_2 > 0.f && g_int_2 > 0)
     {
         float mask = g_bone_mask[boneIdx] * g_float_2;
         if (mask > 0.f)
         {
-            BoneSRT upper = BlendSRT(
-                SampleChannel(boneIdx, boneCount, g_vec4_2),
-                SampleChannel(boneIdx, boneCount, g_vec4_3),
-                g_float_1);
-
+            BoneSRT upper = AccumulateChannels(boneIdx, boneCount, g_int_1, g_int_2);
             pose = BlendSRT(pose, upper, mask);
         }
     }
@@ -133,20 +196,22 @@ matrix GetLayeredBoneMatrix(int boneIdx, int boneCount)
     return SRTToMatrix(pose);
 }
 
-// ë³¸ ê³„ì¸µì˜ ìµœëŒ€ ê¹Šì´ ì•ˆì „ ìƒí•œ. ì‚¬ëŒí˜• ìŠ¤ì¼ˆë ˆí†¤ì€ ë³´í†µ 10 ì•ˆìª½ì´ë‹¤.
+// º» °èÃşÀÇ ÃÖ´ë ±íÀÌ ¾ÈÀü »óÇÑ. »ç¶÷Çü ½ºÄÌ·¹ÅæÀº º¸Åë 10 ¾ÈÂÊÀÌ´Ù.
 #define MAX_BONE_DEPTH 64
 
 // ComputeAnimation
 // g_int_0   : BoneCount
-// g_int_3   : 1 ì´ë©´ ë³¸ í”„ë ˆì„ì´ ë¶€ëª¨ ê¸°ì¤€ ë¡œì»¬ì´ë¼ ê³„ì¸µì„ ë‹¤ì‹œ ì¡°ë¦½í•œë‹¤ (.bin)
-//             0 ì´ë©´ ì´ë¯¸ ëª¨ë¸ ê³µê°„ìœ¼ë¡œ êµ¬ì›Œì ¸ ìˆë‹¤ (FBX)
-// g_vec4_0  : ê¸°ë³¸ ë ˆì´ì–´ ì±„ë„ A = (í´ë¦½ì˜¤í”„ì…‹, í”„ë ˆì„, ë‹¤ìŒí”„ë ˆì„, ë³´ê°„ë¹„ìœ¨)
-// g_vec4_1  : ê¸°ë³¸ ë ˆì´ì–´ ì±„ë„ B
-// g_vec4_2  : ìƒì²´ ë ˆì´ì–´ ì±„ë„ A
-// g_vec4_3  : ìƒì²´ ë ˆì´ì–´ ì±„ë„ B
-// g_float_0 : ê¸°ë³¸ ë ˆì´ì–´ í¬ë¡œìŠ¤í˜ì´ë“œ ê°€ì¤‘ì¹˜ (í˜ì´ë“œ ì¤‘ì´ ì•„ë‹ˆë©´ 1, A == B)
-// g_float_1 : ìƒì²´ ë ˆì´ì–´ í¬ë¡œìŠ¤í˜ì´ë“œ ê°€ì¤‘ì¹˜
-// g_float_2 : ìƒì²´ ë ˆì´ì–´ ì „ì²´ ì„¸ê¸°. 0 ì´ë©´ ìƒì²´ ë ˆì´ì–´ì™€ ë§ˆìŠ¤í¬ë¥¼ ê±´ë„ˆë›´ë‹¤.
+// g_int_1   : ±âº» ·¹ÀÌ¾î Ã¤³Î °³¼ö (¹öÆÛ ¾ÕÂÊºÎÅÍ)
+// g_int_2   : »óÃ¼ ·¹ÀÌ¾î Ã¤³Î °³¼ö (±âº» ·¹ÀÌ¾î µÚ¿¡ ÀÌ¾îÁü)
+// g_int_3   : 1 ÀÌ¸é º» ÇÁ·¹ÀÓÀÌ ºÎ¸ğ ±âÁØ ·ÎÄÃÀÌ¶ó °èÃşÀ» ´Ù½Ã Á¶¸³ÇÑ´Ù (.bin)
+//             0 ÀÌ¸é ÀÌ¹Ì ¸ğµ¨ °ø°£À¸·Î ±¸¿öÁ® ÀÖ´Ù (FBX)
+// g_float_2 : »óÃ¼ ·¹ÀÌ¾î ÀüÃ¼ ¼¼±â
+// t8        : º» ÇÁ·¹ÀÓ (SRT)
+// t9        : ¹ÙÀÎµåÆ÷Áî ¿ªÇà·Ä
+// t10       : ºÎ¸ğ ÀÎµ¦½º (·ÎÄÃÀÏ ¶§¸¸)
+// t11       : º»º° »óÃ¼ ¸¶½ºÅ© (·¹ÀÌ¾î°¡ ÄÑÁ® ÀÖÀ» ¶§¸¸)
+// t12       : ÀÌ¹ø ÇÁ·¹ÀÓÀÇ Ã¤³Î ¸ñ·Ï
+// u0        : º» ÃÖÁ¾ Çà·Ä (Ãâ·Â)
 [numthreads(256, 1, 1)]
 void CS_Main(int3 threadIdx : SV_DispatchThreadID)
 {
@@ -160,12 +225,12 @@ void CS_Main(int3 threadIdx : SV_DispatchThreadID)
 
     if (localFrames == 1)
     {
-        // ë¡œì»¬ -> ëª¨ë¸ ê³µê°„. ë¶€ëª¨ë¥¼ íƒ€ê³  ë£¨íŠ¸ê¹Œì§€ ì˜¬ë¼ê°€ë©° ê³±í•œë‹¤.
-        //   World = ToParent * ParentWorld   (í–‰ë²¡í„° ê·œì•½)
+        // ·ÎÄÃ -> ¸ğµ¨ °ø°£. ºÎ¸ğ¸¦ Å¸°í ·çÆ®±îÁö ¿Ã¶ó°¡¸ç °öÇÑ´Ù.
+        //   World = ToParent * ParentWorld   (Çàº¤ÅÍ ±Ô¾à)
         //
-        // ìŠ¤ë ˆë“œë§ˆë‹¤ ì¡°ìƒ ì²´ì¸ì„ ì¤‘ë³µ ê³„ì‚°í•˜ì§€ë§Œ, ë³¸ 100ì—¬ ê°œ * ê¹Šì´ 10 ìˆ˜ì¤€ì´ë¼
-        // ê¹Šì´ë³„ ë‹¤ì¤‘ Dispatch ë¥¼ ì“¸ ë§Œí¼ì˜ ë¹„ìš©ì´ ì•„ë‹ˆë‹¤. ëŒ€ì‹  ì½”ë“œê°€ ë‹¨ìˆœí•˜ê³ ,
-        // ë³¸ë§ˆë‹¤ ë‹¤ë¥¸ í´ë¦½ì„ ì„ëŠ” ë ˆì´ì–´ ë¸”ë Œë”©ìœ¼ë¡œ í™•ì¥í•˜ê¸°ë„ ì‰½ë‹¤.
+        // ½º·¹µå¸¶´Ù Á¶»ó Ã¼ÀÎÀ» Áßº¹ °è»êÇÏÁö¸¸, º» 100¿© °³ * ±íÀÌ 10 ¼öÁØÀÌ¶ó
+        // ±íÀÌº° ´ÙÁß Dispatch ¸¦ ¾µ ¸¸Å­ÀÇ ºñ¿ëÀÌ ¾Æ´Ï´Ù. ´ë½Å ÄÚµå°¡ ´Ü¼øÇÏ°í,
+        // º»¸¶´Ù ´Ù¸¥ Å¬¸³À» ¼¯´Â ·¹ÀÌ¾î ºí·»µùÀ¸·Î È®ÀåÇÏ±âµµ ½±´Ù.
         int parent = g_bone_parent[threadIdx.x];
 
         [loop]
@@ -179,9 +244,9 @@ void CS_Main(int3 threadIdx : SV_DispatchThreadID)
         }
     }
 
-    // g_offset ì€ ì—´ ìš°ì„ ìœ¼ë¡œ ì½íŒë‹¤. FBX ê²½ë¡œëŠ” FbxAMatrix ë¥¼ ê·¸ëŒ€ë¡œ ë³µì‚¬í•´
-    // ì´ë¯¸ ê·¸ í˜•íƒœê³ , .bin ì€ CPU ìª½(Mesh)ì—ì„œ ì „ì¹˜í•´ ë§ì¶° ë†“ì•˜ë‹¤.
-    //   ìµœì¢… = Offset * World   (í–‰ë²¡í„° ê·œì•½)
+    // g_offset Àº ¿­ ¿ì¼±À¸·Î ÀĞÈù´Ù. FBX °æ·Î´Â FbxAMatrix ¸¦ ±×´ë·Î º¹»çÇØ
+    // ÀÌ¹Ì ±× ÇüÅÂ°í, .bin Àº CPU ÂÊ(Mesh)¿¡¼­ ÀüÄ¡ÇØ ¸ÂÃç ³õ¾Ò´Ù.
+    //   ÃÖÁ¾ = Offset * World   (Çàº¤ÅÍ ±Ô¾à)
     g_final[threadIdx.x] = mul(g_offset[threadIdx.x], matBone);
 }
 
