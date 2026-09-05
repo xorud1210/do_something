@@ -13,6 +13,7 @@
 #include "TestCameraScript.h"
 #include "Resources.h"
 #include "ParticleSystem.h"
+#include "BillboardRenderer.h"
 #include "Terrain.h"
 #include "SphereCollider.h"
 #include "MeshData.h"
@@ -269,6 +270,39 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 			meshRenderer->SetMaterial(material);
 		}
 		obj->AddComponent(meshRenderer);
+
+		scene->AddGameObject(obj);
+	}
+#pragma endregion
+
+#pragma region Foliage
+	// 인스턴싱 초목.
+	// 점 하나를 GS 에서 사각형으로 펼치므로 정점 버퍼에는 점 하나뿐이고,
+	// 위치·크기·바람 위상은 StructuredBuffer 에서 인스턴스 ID 로 당겨온다.
+	// 수천 장이 드로우콜 하나로 나간다.
+	{
+		shared_ptr<GameObject> obj = make_shared<GameObject>();
+		obj->SetName(L"Grass");
+		obj->AddComponent(make_shared<Transform>());
+		obj->SetCheckFrustum(false);
+
+		BillboardDesc desc;
+		desc.count = 4000;
+		desc.center = Vec3(90.f, 0.f, 340.f);
+		desc.area = Vec2(2600.f, 2600.f);
+		desc.groundY = -85.f;			// 바닥 윗면
+		desc.minScale = 20.f;
+		desc.maxScale = 42.f;
+		desc.heightRatio = 1.5f;
+		desc.holeCenter = Vec3(250.f, 0.f, 460.f);	// 화톳불 자리는 비워둔다
+		desc.holeRadius = 130.f;
+		desc.windDirection = Vec3(1.f, 0.f, 0.35f);
+		desc.windStrength = 6.f;
+		desc.windFrequency = 1.5f;
+
+		shared_ptr<BillboardRenderer> billboard = make_shared<BillboardRenderer>();
+		billboard->SetDesc(desc);
+		obj->AddComponent(billboard);
 
 		scene->AddGameObject(obj);
 	}

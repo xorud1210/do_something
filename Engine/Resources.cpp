@@ -673,6 +673,32 @@ void Resources::CreateDefaultShader()
 		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\postprocess.fx", info, arg);
 		Add<Shader>(L"Tonemap", shader);
 	}
+
+	// Billboard (Deferred)
+	// 초목은 알파 테스트라 디퍼드로 갈 수 있다. 앞뒤 양면을 다 보여야 하므로 컬링을 끈다.
+	{
+		ShaderInfo info =
+		{
+			SHADER_TYPE::DEFERRED,
+			RASTERIZER_TYPE::CULL_NONE,
+			DEPTH_STENCIL_TYPE::LESS,
+			BLEND_TYPE::DEFAULT,
+			D3D_PRIMITIVE_TOPOLOGY_POINTLIST
+		};
+
+		ShaderArg arg =
+		{
+			"VS_Main",
+			"",
+			"",
+			"GS_Main",
+			"PS_Main"
+		};
+
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\billboard.fx", info, arg);
+		Add<Shader>(L"Billboard", shader);
+	}
 }
 
 void Resources::CreateDefaultMaterial()
@@ -747,6 +773,14 @@ void Resources::CreateDefaultMaterial()
 		material->SetTexture(1, GET_SINGLE(Resources)->Get<Texture>(L"BloomHalfTarget_0"));
 		material->SetTexture(2, GET_SINGLE(Resources)->Get<Texture>(L"BloomQuarterTarget_0"));
 		Add<Material>(L"Tonemap", material);
+	}
+
+	// Billboard
+	{
+		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"Billboard");
+		shared_ptr<Material> material = make_shared<Material>();
+		material->SetShader(shader);
+		Add<Material>(L"Billboard", material);
 	}
 
 	// Compute Shader

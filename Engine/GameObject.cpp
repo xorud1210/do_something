@@ -6,6 +6,7 @@
 #include "Light.h"
 #include "MonoBehaviour.h"
 #include "ParticleSystem.h"
+#include "BillboardRenderer.h"
 #include "Terrain.h"
 #include "BaseCollider.h"
 #include "Animator.h"
@@ -120,6 +121,12 @@ shared_ptr<ParticleSystem> GameObject::GetParticleSystem()
 {
 	shared_ptr<Component> component = GetFixedComponent(COMPONENT_TYPE::PARTICLE_SYSTEM);
 	return static_pointer_cast<ParticleSystem>(component);
+}
+
+shared_ptr<BillboardRenderer> GameObject::GetBillboardRenderer()
+{
+	shared_ptr<Component> component = GetFixedComponent(COMPONENT_TYPE::BILLBOARD_RENDERER);
+	return static_pointer_cast<BillboardRenderer>(component);
 }
 
 shared_ptr<Terrain> GameObject::GetTerrain()

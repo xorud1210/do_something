@@ -3,6 +3,7 @@
 #include "Transform.h"
 #include "Scene.h"
 #include "SceneManager.h"
+#include "BillboardRenderer.h"
 #include "GameObject.h"
 #include "MeshRenderer.h"
 #include "Engine.h"
@@ -44,10 +45,13 @@ void Camera::SortGameObject()
 	_vecForward.clear();
 	_vecDeferred.clear();
 	_vecParticle.clear();
+	_vecBillboard.clear();
 
 	for (auto& gameObject : gameObjects)
 	{
-		if (gameObject->GetMeshRenderer() == nullptr && gameObject->GetParticleSystem() == nullptr)
+		if (gameObject->GetMeshRenderer() == nullptr
+			&& gameObject->GetParticleSystem() == nullptr
+			&& gameObject->GetBillboardRenderer() == nullptr)
 			continue;
 
 		if (IsCulled(gameObject->GetLayerIndex()))
@@ -78,6 +82,10 @@ void Camera::SortGameObject()
 				_vecForward.push_back(gameObject);
 				break;
 			}
+		}
+		else if (gameObject->GetBillboardRenderer())
+		{
+			_vecBillboard.push_back(gameObject);
 		}
 		else
 		{
@@ -124,6 +132,13 @@ void Camera::Render_Deferred()
 	S_MatProjection = _matProjection;
 
 	GET_SINGLE(InstancingManager)->Render(_vecDeferred);
+
+	// 빌보드도 G-Buffer 에 쓴다. 알파 블렌딩이 아니라 알파 테스트라 디퍼드로 갈 수 있고,
+	// 그 덕에 조명과 그림자를 그대로 받는다.
+	for (auto& gameObject : _vecBillboard)
+	{
+		gameObject->GetBillboardRenderer()->Render();
+	}
 }
 
 void Camera::Render_Forward()

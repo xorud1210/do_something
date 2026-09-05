@@ -31,6 +31,7 @@ public:
 	shared_ptr<Camera> GetCamera();
 	shared_ptr<Light> GetLight();
 	shared_ptr<ParticleSystem> GetParticleSystem();
+	shared_ptr<class BillboardRenderer> GetBillboardRenderer();
 	shared_ptr<Terrain> GetTerrain();
 	shared_ptr<BaseCollider> GetCollider();
 	shared_ptr<Animator> GetAnimator();
