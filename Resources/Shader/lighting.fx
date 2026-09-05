@@ -34,6 +34,7 @@ struct PS_OUT
 // g_vec4_1 : 캐스케이드별 텍셀 하나의 월드 크기
 // g_float_0: 깊이 바이어스
 // g_float_1: 아틀라스 텍셀 크기 (1 / 4096)
+// g_float_3: 캐스케이드 경계 블렌딩 폭 (비율)
 // Mesh : Rectangle
 
 VS_OUT VS_DirLight(VS_IN input)
@@ -74,13 +75,12 @@ float2 GetCascadeTileOffset(int cascade)
     return float2((cascade % 2) * 0.5f, (cascade / 2) * 0.5f);
 }
 
-// 그림자 안이면 0, 밖이면 1.
+// 캐스케이드 하나에서 그림자 값을 뽑는다. 그림자 안이면 0, 밖이면 1.
+//
 // 한 번만 비교하면 셰도우 맵 텍셀 하나가 그대로 화면의 계단이 된다.
 // 주변을 여러 번 비교해 평균 내면 그 경계가 텍셀 사이로 흩어진다 (PCF).
-float SampleShadow(float3 worldPos, float3 worldNormal, float viewDepth)
+float SampleShadowCascade(int cascade, float3 worldPos, float3 worldNormal)
 {
-    int cascade = SelectCascade(viewDepth);
-
     // 노멀 오프셋.
     // 표면에 비스듬히 닿는 빛일수록 셰도우 맵 텍셀 하나가 월드에서 길게 늘어나
     // 자기 자신을 가리는 줄무늬(셰도우 애크니)가 생긴다.
@@ -121,6 +121,32 @@ float SampleShadow(float3 worldPos, float3 worldNormal, float viewDepth)
     }
 
     return shadow / 9.f;
+}
+
+// g_float_3 : 구간 경계에서 겹쳐 섞을 폭. 구간 끝 깊이에 대한 비율. 0 이면 끈다.
+float SampleShadow(float3 worldPos, float3 worldNormal, float viewDepth)
+{
+    int cascade = SelectCascade(viewDepth);
+    float shadow = SampleShadowCascade(cascade, worldPos, worldNormal);
+
+    // 캐스케이드마다 셰도우 맵의 해상도가 달라서, 구간이 바뀌는 자리에
+    // 그림자의 부드러움이 한 번에 달라지는 선이 생긴다.
+    // 경계 앞쪽 일정 구간에서 다음 캐스케이드도 같이 뽑아 겹쳐 섞는다.
+    // 그 구간에서만 PCF 가 두 번 도므로 비용은 띠 안쪽에만 붙는다.
+    if (g_float_3 > 0.f && cascade < g_int_1 - 1)
+    {
+        float splitEnd = g_vec4_0[cascade];
+        float band = splitEnd * g_float_3;
+
+        if (viewDepth > splitEnd - band)
+        {
+            float t = saturate((viewDepth - (splitEnd - band)) / band);
+            float next = SampleShadowCascade(cascade + 1, worldPos, worldNormal);
+            shadow = lerp(shadow, next, t);
+        }
+    }
+
+    return shadow;
 }
 
 PS_OUT PS_DirLight(VS_OUT input)

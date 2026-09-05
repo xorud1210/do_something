@@ -59,6 +59,7 @@ void Light::Render()
 		_lightMaterial->SetVec4(1, Vec4(_cascadeTexelWorld[0], _cascadeTexelWorld[1], _cascadeTexelWorld[2], 0.f));
 		_lightMaterial->SetFloat(0, _shadowBias);
 		_lightMaterial->SetFloat(1, 1.f / static_cast<float>(SHADOW_MAP_SIZE));
+		_lightMaterial->SetFloat(3, _cascadeBlend);
 		_lightMaterial->SetInt(2, _cascadeDebug ? 1 : 0);
 	}
 	else

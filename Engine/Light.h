@@ -65,6 +65,8 @@ public:
 	// 아무 데도 못 미친다. 여기까지만 나눠 담는다.
 	void SetShadowDistance(float value) { _shadowDistance = value; }
 	void SetShadowBias(float value) { _shadowBias = value; }
+	// 구간 경계에서 두 캐스케이드를 겹쳐 섞는 폭. 0 이면 끈다.
+	void SetCascadeBlend(float value) { _cascadeBlend = value; }
 
 private:
 	// 카메라 절두체를 거리로 잘라 구간마다 셰도우 맵을 따로 맞춘다.
@@ -90,6 +92,7 @@ private:
 	float _shadowDistance = 3000.f;
 	float _cascadeLambda = 0.5f;	// 0 이면 균등 분할, 1 이면 로그 분할
 	float _shadowBias = 0.0015f;
+	float _cascadeBlend = 0.12f;
 
 	// F1 로 켠다. 어느 픽셀이 몇 번 캐스케이드를 쓰는지 색으로 보여준다.
 	bool _cascadeDebug = false;
