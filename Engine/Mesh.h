@@ -44,6 +44,10 @@ public:
 
 	void Create(const vector<Vertex>& vertexBuffer, const vector<uint32>& indexbuffer);
 	void Render(uint32 instanceCount = 1, uint32 idx = 0);
+
+	// 인스턴스 개수를 CPU 가 모르는 채로 그린다.
+	// 개수는 GPU 가 argBuffer 에 써 둔 값을 커맨드 프로세서가 읽어 간다.
+	void RenderIndirect(ID3D12CommandSignature* signature, ID3D12Resource* argBuffer, uint32 idx = 0);
 	void Render(shared_ptr<class InstancingBuffer>& buffer, uint32 idx = 0);
 
 	static shared_ptr<Mesh> CreateFromFBX(const struct FbxMeshInfo* meshInfo, class FBXLoader& loader);
@@ -59,6 +63,7 @@ private:
 
 public:
 	uint32 GetSubsetCount() { return static_cast<uint32>(_vecIndexInfo.size()); }
+	uint32 GetIndexCount(uint32 idx = 0) { return _vecIndexInfo[idx].count; }
 	const vector<BoneInfo>* GetBones() { return &_bones; }
 	uint32						GetBoneCount() { return static_cast<uint32>(_bones.size()); }
 	const vector<AnimClipInfo>* GetAnimClip() { return &_animClips; }

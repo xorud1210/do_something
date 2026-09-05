@@ -7,8 +7,16 @@
 #include "Resources.h"
 #include "Transform.h"
 #include "Timer.h"
+#include "Engine.h"
+#include "Camera.h"
 
 #include <random>
+
+// foliage_cull.fx 의 [numthreads] 와 같아야 한다.
+constexpr uint32 FOLIAGE_CULL_GROUP_SIZE = 256;
+
+ComPtr<ID3D12CommandSignature> BillboardRenderer::s_cmdSignature;
+bool BillboardRenderer::s_cullEnabled = true;
 
 BillboardRenderer::BillboardRenderer() : Component(COMPONENT_TYPE::BILLBOARD_RENDERER)
 {
@@ -84,6 +92,80 @@ void BillboardRenderer::SetDesc(const BillboardDesc& desc)
 	Vec3 wind = _desc.windDirection;
 	wind.Normalize();
 	_material->SetVec4(0, Vec4(wind.x, wind.y, wind.z, 0.f));
+
+	CreateCullResources();
+}
+
+void BillboardRenderer::CreateCullResources()
+{
+	_cullMaterial = GET_SINGLE(Resources)->Get<Material>(L"ComputeFoliageCull")->Clone();
+
+	// 통과한 것만 담을 곳. 최악의 경우 전부 통과하므로 크기는 같다.
+	_visibleBuffer = make_shared<StructuredBuffer>();
+	_visibleBuffer->Init(sizeof(BillboardInstance), _instanceCount);
+
+	// 그리기 인자 버퍼.
+	// uint 다섯 개짜리 구조적 버퍼로 만들어 두면 셰이더에서 g_args[1] 로
+	// InstanceCount 필드를 직접 InterlockedAdd 할 수 있다.
+	D3D12_DRAW_INDEXED_ARGUMENTS args = {};
+	args.IndexCountPerInstance = _mesh->GetIndexCount();
+	args.InstanceCount = 0;			// 컴퓨트 셰이더가 채운다
+	args.StartIndexLocation = 0;
+	args.BaseVertexLocation = 0;
+	args.StartInstanceLocation = 0;
+
+	constexpr uint32 argElementCount = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS) / sizeof(uint32);
+	static_assert(argElementCount == 5, "DRAW_INDEXED_ARGUMENTS layout changed");
+
+	_argsBuffer = make_shared<StructuredBuffer>();
+	_argsBuffer->Init(sizeof(uint32), argElementCount, &args);
+
+	// 매 프레임 InstanceCount 를 0 으로 되돌려야 한다.
+	// UPLOAD 힙은 UAV 가 될 수 없어 셰이더가 직접 못 만들고, 한 스레드에게
+	// 0 을 쓰게 하면 같은 디스패치의 InterlockedAdd 와 경합한다.
+	// 작은 원본에서 복사해 오는 쪽이 확실하다.
+	{
+		D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(args));
+		D3D12_HEAP_PROPERTIES heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+
+		DEVICE->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+			D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&_argsReset));
+
+		void* mapped = nullptr;
+		D3D12_RANGE readRange{ 0, 0 };
+		_argsReset->Map(0, &readRange, &mapped);
+		::memcpy(mapped, &args, sizeof(args));
+		_argsReset->Unmap(0, nullptr);
+	}
+
+	// 몇 장이 통과했는지 눈으로 확인하기 위한 되읽기 버퍼.
+	// 컬링이 "작동은 하는데 아무것도 안 거른" 상태와 정상 상태는
+	// 최종 화면이 똑같아서 구분할 수가 없다.
+	{
+		D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(args));
+		D3D12_HEAP_PROPERTIES heap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK);
+
+		DEVICE->CreateCommittedResource(&heap, D3D12_HEAP_FLAG_NONE, &desc,
+			D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&_argsReadback));
+
+		_argsReadback->Map(0, nullptr, reinterpret_cast<void**>(&_readback));
+	}
+
+	// 커맨드 시그니처. 인자 버퍼의 해석 방법만 담는다.
+	if (s_cmdSignature == nullptr)
+	{
+		D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+		argDesc.Type = D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED;
+
+		D3D12_COMMAND_SIGNATURE_DESC sigDesc = {};
+		sigDesc.ByteStride = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+		sigDesc.NumArgumentDescs = 1;
+		sigDesc.pArgumentDescs = &argDesc;
+		sigDesc.NodeMask = 0;
+
+		// 루트 인자를 바꾸지 않는 시그니처라 루트 시그니처를 넘길 필요가 없다.
+		DEVICE->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&s_cmdSignature));
+	}
 }
 
 void BillboardRenderer::FinalUpdate()
@@ -91,19 +173,115 @@ void BillboardRenderer::FinalUpdate()
 	_accTime += DELTA_TIME;
 }
 
+void BillboardRenderer::CullOnGPU()
+{
+	ID3D12Resource* args = _argsBuffer->GetBuffer().Get();
+	constexpr uint64 argsSize = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
+
+	// 1) InstanceCount 를 0 으로.
+	{
+		D3D12_RESOURCE_BARRIER toCopy = CD3DX12_RESOURCE_BARRIER::Transition(args,
+			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+		COMPUTE_CMD_LIST->ResourceBarrier(1, &toCopy);
+
+		COMPUTE_CMD_LIST->CopyBufferRegion(args, 0, _argsReset.Get(), 0, argsSize);
+
+		D3D12_RESOURCE_BARRIER toUav = CD3DX12_RESOURCE_BARRIER::Transition(args,
+			D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+		COMPUTE_CMD_LIST->ResourceBarrier(1, &toUav);
+	}
+
+	// 2) 절두체 판정.
+	_instanceBuffer->PushComputeSRVData(SRV_REGISTER::t9);
+	_visibleBuffer->PushComputeUAVData(UAV_REGISTER::u0);
+	_argsBuffer->PushComputeUAVData(UAV_REGISTER::u1);
+
+	// 카메라가 매 프레임 바뀌므로 뷰-투영 행렬을 그대로 넘긴다.
+	// 평면 6장은 셰이더가 이 행렬에서 직접 뽑는다.
+	Matrix matVP = Camera::S_MatView * Camera::S_MatProjection;
+	_cullMaterial->SetMatrix(0, matVP);
+
+	Matrix matViewInv = Camera::S_MatView.Invert();
+	_cullMaterial->SetVec4(0, Vec4(matViewInv._41, matViewInv._42, matViewInv._43, 0.f));
+
+	_cullMaterial->SetInt(0, static_cast<int32>(_instanceCount));
+	_cullMaterial->SetFloat(0, _desc.heightRatio);
+	_cullMaterial->SetFloat(1, _desc.windStrength);
+	_cullMaterial->SetFloat(2, _desc.maxDrawDistance);
+
+	_cullMaterial->PushComputeData();
+	GEngine->GetComputeDescHeap()->CommitTable();
+
+	const uint32 groupCount =
+		(_instanceCount + FOLIAGE_CULL_GROUP_SIZE - 1) / FOLIAGE_CULL_GROUP_SIZE;
+	COMPUTE_CMD_LIST->Dispatch(groupCount, 1, 1);
+
+	// 3) 통과 개수를 CPU 로 되읽는다.
+	//    Material::Dispatch 를 쓰지 않고 직접 기록하는 이유가 이것이다.
+	//    바로 아래에서 컴퓨트 큐를 통째로 비우므로, 이 복사를 같은 커맨드 리스트에
+	//    실어 두면 한 프레임 늦지 않고 이번 프레임 값이 그대로 온다.
+	{
+		D3D12_RESOURCE_BARRIER toSrc = CD3DX12_RESOURCE_BARRIER::Transition(args,
+			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+		COMPUTE_CMD_LIST->ResourceBarrier(1, &toSrc);
+
+		COMPUTE_CMD_LIST->CopyBufferRegion(_argsReadback.Get(), 0, args, 0, argsSize);
+
+		D3D12_RESOURCE_BARRIER toCommon = CD3DX12_RESOURCE_BARRIER::Transition(args,
+			D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
+		COMPUTE_CMD_LIST->ResourceBarrier(1, &toCommon);
+	}
+
+	GEngine->GetComputeCmdQueue()->FlushComputeCommandQueue();
+
+	if (_readback)
+		_visibleCount = _readback[1];
+}
+
 void BillboardRenderer::Render()
 {
 	if (_instanceBuffer == nullptr || _instanceCount == 0)
 		return;
 
+	const bool cull = s_cullEnabled && _cullMaterial != nullptr;
+
+	if (cull)
+		CullOnGPU();
+	else
+		_visibleCount = _instanceCount;
+
 	GetTransform()->PushData();
 
-	_instanceBuffer->PushGraphicsData(SRV_REGISTER::t9);
+	// 정점 셰이더가 인스턴스 ID 로 당겨올 목록.
+	// 컬링을 켜면 추려진 목록, 끄면 원본을 그대로 본다.
+	if (cull)
+		_visibleBuffer->PushGraphicsData(SRV_REGISTER::t9);
+	else
+		_instanceBuffer->PushGraphicsData(SRV_REGISTER::t9);
 
 	_material->SetFloat(0, _accTime);
 	_material->PushGraphicsData();
 
-	// 정점 버퍼에는 점 하나뿐이고, 나머지는 인스턴스 ID 로 버퍼에서 당겨온다.
-	// 드로우콜 한 번에 _instanceCount 장이 나간다.
-	_mesh->Render(_instanceCount);
+	GEngine->SetStatusText(L"Foliage " + std::to_wstring(_visibleCount)
+		+ L" / " + std::to_wstring(_instanceCount)
+		+ (cull ? L"" : L" (cull off)"));
+
+	if (cull == false)
+	{
+		_mesh->Render(_instanceCount);
+		return;
+	}
+
+	// 인스턴스 개수는 CPU 가 모른다. 커맨드 프로세서가 버퍼에서 읽어 간다.
+	ID3D12Resource* args = _argsBuffer->GetBuffer().Get();
+
+	D3D12_RESOURCE_BARRIER toIndirect = CD3DX12_RESOURCE_BARRIER::Transition(args,
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT);
+	GRAPHICS_CMD_LIST->ResourceBarrier(1, &toIndirect);
+
+	_mesh->RenderIndirect(s_cmdSignature.Get(), args);
+
+	D3D12_RESOURCE_BARRIER toCommon = CD3DX12_RESOURCE_BARRIER::Transition(args,
+		D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_STATE_COMMON);
+	GRAPHICS_CMD_LIST->ResourceBarrier(1, &toCommon);
 }

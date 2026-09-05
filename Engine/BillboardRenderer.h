@@ -6,7 +6,7 @@ class Mesh;
 class StructuredBuffer;
 
 // 빌보드 하나의 인스턴스 데이터.
-// billboard.fx 의 BillboardInstance 와 배치가 같아야 한다.
+// billboard.fx / foliage_cull.fx 의 BillboardInstance 와 배치가 같아야 한다.
 struct BillboardInstance
 {
 	Vec3	worldPos;
@@ -36,6 +36,9 @@ struct BillboardDesc
 	float	windStrength = 10.f;
 	float	windFrequency = 1.6f;
 
+	// 이보다 먼 것은 그리지 않는다. 0 이면 거리 제한 없음.
+	float	maxDrawDistance = 0.f;
+
 	wstring	textureKey = L"FoliageGrass";
 	wstring	texturePath = L"..\\Resources\\Texture\\Foliage\\grass.png";
 
@@ -46,6 +49,11 @@ struct BillboardDesc
 //
 // 인스턴스 데이터를 StructuredBuffer 에 올려두고 정점 셰이더가 인스턴스 ID 로
 // 당겨온다. 정점 버퍼에는 점 하나뿐이라 수천 장이 드로우콜 하나로 나간다.
+//
+// 그 드로우콜의 인스턴스 개수는 CPU 가 정하지 않는다.
+// 컴퓨트 셰이더가 절두체 밖의 것을 걸러 통과한 것만 별도 버퍼에 모으고,
+// 그 개수를 그리기 인자 버퍼에 직접 써 넣는다. 그리기는 ExecuteIndirect 로
+// 그 버퍼를 가리키기만 한다.
 class BillboardRenderer : public Component
 {
 public:
@@ -61,19 +69,46 @@ public:
 	const BillboardDesc& GetDesc() const { return _desc; }
 
 	uint32 GetInstanceCount() const { return _instanceCount; }
+	uint32 GetVisibleCount() const { return _visibleCount; }
+
+	// 컬링을 켜고 끈다. 대조 스크린샷과 성능 비교용 (F2).
+	static void SetCullEnabled(bool value) { s_cullEnabled = value; }
+	static bool IsCullEnabled() { return s_cullEnabled; }
 
 public:
 	virtual void Load(const wstring& path) override { }
 	virtual void Save(const wstring& path) override { }
 
 private:
+	// 절두체 컬링 자원을 만든다. 인스턴스 개수가 정해진 뒤에 부른다.
+	void CreateCullResources();
+
+	// 컴퓨트 큐에서 컬링을 돌리고 통과 개수를 되읽는다.
+	void CullOnGPU();
+
+private:
 	BillboardDesc					_desc;
 
-	shared_ptr<StructuredBuffer>	_instanceBuffer;
+	shared_ptr<StructuredBuffer>	_instanceBuffer;	// 원본. 심을 때 한 번 만들고 안 바뀐다
 	uint32							_instanceCount = 0;
+
+	// --- GPU 컬링 ---
+	shared_ptr<StructuredBuffer>	_visibleBuffer;		// 통과한 것만 추린 목록
+	shared_ptr<StructuredBuffer>	_argsBuffer;		// D3D12_DRAW_INDEXED_ARGUMENTS
+	ComPtr<ID3D12Resource>			_argsReset;			// 매 프레임 되돌릴 초기값 (UPLOAD)
+	ComPtr<ID3D12Resource>			_argsReadback;		// 통과 개수 확인용 (READBACK)
+	uint32*							_readback = nullptr;
+	shared_ptr<Material>			_cullMaterial;
+	uint32							_visibleCount = 0;
 
 	shared_ptr<Material>			_material;
 	shared_ptr<Mesh>				_mesh;
 
 	float							_accTime = 0.f;
+
+private:
+	// 커맨드 시그니처는 "인자 버퍼를 어떻게 읽을 것인가" 만 담는다.
+	// 메시나 머티리얼과 무관하므로 하나만 만들어 공유한다.
+	static ComPtr<ID3D12CommandSignature>	s_cmdSignature;
+	static bool								s_cullEnabled;
 };

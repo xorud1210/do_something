@@ -33,6 +33,19 @@ void Mesh::Render(uint32 instanceCount, uint32 idx)
 	GRAPHICS_CMD_LIST->DrawIndexedInstanced(_vecIndexInfo[idx].count, instanceCount, 0, 0, 0);
 }
 
+void Mesh::RenderIndirect(ID3D12CommandSignature* signature, ID3D12Resource* argBuffer, uint32 idx)
+{
+	GRAPHICS_CMD_LIST->IASetVertexBuffers(0, 1, &_vertexBufferView);
+	GRAPHICS_CMD_LIST->IASetIndexBuffer(&_vecIndexInfo[idx].bufferView);
+
+	GEngine->GetGraphicsDescHeap()->CommitTable();
+
+	// DrawIndexedInstanced 와 하는 일은 같다. 다른 점은 다섯 개의 인자를
+	// CPU 가 넣지 않고 커맨드 프로세서가 버퍼에서 읽어 간다는 것뿐이다.
+	// 그래서 인스턴스 개수를 컴퓨트 셰이더가 정할 수 있다.
+	GRAPHICS_CMD_LIST->ExecuteIndirect(signature, 1, argBuffer, 0, nullptr, 0);
+}
+
 void Mesh::Render(shared_ptr<InstancingBuffer>& buffer, uint32 idx)
 {
 	D3D12_VERTEX_BUFFER_VIEW bufferViews[] = { _vertexBufferView, buffer->GetBufferView() };

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "Engine.h"
+#include "BillboardRenderer.h"
 #include "Material.h"
 #include "Transform.h"
 #include "Input.h"
@@ -41,6 +42,11 @@ void Engine::Init(const WindowInfo& info)
 void Engine::Update()
 {
 	GET_SINGLE(Input)->Update();
+
+	// F2 : 초목 절두체 컬링 On/Off. 대조 스크린샷과 프레임 비교용.
+	if (INPUT->GetButtonDown(KEY_TYPE::F2))
+		BillboardRenderer::SetCullEnabled(BillboardRenderer::IsCullEnabled() == false);
+
 	GET_SINGLE(Timer)->Update();
 	GET_SINGLE(SceneManager)->Update();
 	GET_SINGLE(InstancingManager)->ClearBuffer();
@@ -88,10 +94,11 @@ void Engine::ShowFps()
 {
 	uint32 fps = GET_SINGLE(Timer)->GetFps();
 
-	WCHAR text[100] = L"";
-	::wsprintf(text, L"FPS : %d", fps);
+	wstring text = L"FPS : " + std::to_wstring(fps);
+	if (_statusText.empty() == false)
+		text += L"   |   " + _statusText;
 
-	::SetWindowText(_window.hwnd, text);
+	::SetWindowText(_window.hwnd, text.c_str());
 }
 
 void Engine::CreateConstantBuffer(CBV_REGISTER reg, uint32 bufferSize, uint32 count)

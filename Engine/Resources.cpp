@@ -556,6 +556,13 @@ void Resources::CreateDefaultShader()
 		Add<Shader>(L"ComputeParticle", shader);
 	}
 
+	// ComputeFoliageCull - 초목 인스턴스를 절두체로 걸러 간접 드로우 인자를 만든다
+	{
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateComputeShader(L"..\\Resources\\Shader\\foliage_cull.fx", "CS_Main", "cs_5_0");
+		Add<Shader>(L"ComputeFoliageCull", shader);
+	}
+
 	// Shadow
 	{
 		ShaderInfo info =
@@ -837,6 +844,15 @@ void Resources::CreateDefaultMaterial()
 		material->SetShader(shader);
 
 		Add<Material>(L"ComputeParticle", material);
+	}
+
+	// ComputeFoliageCull
+	{
+		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"ComputeFoliageCull");
+		shared_ptr<Material> material = make_shared<Material>();
+		material->SetShader(shader);
+
+		Add<Material>(L"ComputeFoliageCull", material);
 	}
 
 	// GameObject

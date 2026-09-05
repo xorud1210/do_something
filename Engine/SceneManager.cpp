@@ -287,7 +287,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		obj->SetCheckFrustum(false);
 
 		BillboardDesc desc;
-		desc.count = 4000;
+		desc.count = 30000;
 		desc.center = Vec3(90.f, 0.f, 340.f);
 		desc.area = Vec2(2600.f, 2600.f);
 		desc.groundY = -85.f;			// 바닥 윗면
@@ -299,6 +299,9 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		desc.windDirection = Vec3(1.f, 0.f, 0.35f);
 		desc.windStrength = 6.f;
 		desc.windFrequency = 1.5f;
+		// 심은 범위(2600)보다 짧게 자르면 풀밭 가장자리에 원형 경계가 눈에 보인다.
+		// 페이드 없이 자를 거면 아예 안 자르는 편이 낫다.
+		desc.maxDrawDistance = 0.f;
 
 		shared_ptr<BillboardRenderer> billboard = make_shared<BillboardRenderer>();
 		billboard->SetDesc(desc);
