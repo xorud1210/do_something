@@ -39,6 +39,18 @@ struct BillboardDesc
 	// 이보다 먼 것은 그리지 않는다. 0 이면 거리 제한 없음.
 	float	maxDrawDistance = 0.f;
 
+	// 셰도우 맵에도 그릴 것인가.
+	// 캐스케이드마다 한 번씩 더 그리므로 공짜가 아니다.
+	bool	castShadow = false;
+
+	// 앞에서 몇 개의 캐스케이드까지 그릴 것인가 (SHADOW_CASCADE_COUNT 가 상한).
+	//
+	// 처음에는 "먼 구간에서는 풀 한 장이 텍셀보다 작아지니 빼자" 고 생각했는데,
+	// 재 보니 틀렸다. 가장 먼 구간에서도 텍셀 하나가 월드 2.2 단위라
+	// 폭 20~42 짜리 풀은 9~19 텍셀을 덮는다. 셰도우 맵은 충분히 담아낸다.
+	// 줄이는 것은 순수한 비용/품질 다이얼이다 - 먼 풀밭이 평평해지는 대신 싸진다.
+	uint32	shadowCascadeCount = 3;
+
 	wstring	textureKey = L"FoliageGrass";
 	wstring	texturePath = L"..\\Resources\\Texture\\Foliage\\grass.png";
 
@@ -64,6 +76,10 @@ public:
 	virtual void FinalUpdate() override;
 	void Render();
 
+	// 셰도우 패스. 캐스케이드마다 한 번씩 불린다.
+	void RenderShadow(uint32 cascade);
+	bool IsCastShadow() const { return s_shadowEnabled && _desc.castShadow && _instanceCount > 0; }
+
 	// 설정에 맞춰 인스턴스를 흩뿌리고 버퍼를 다시 만든다.
 	void SetDesc(const BillboardDesc& desc);
 	const BillboardDesc& GetDesc() const { return _desc; }
@@ -74,6 +90,10 @@ public:
 	// 컬링을 켜고 끈다. 대조 스크린샷과 성능 비교용 (F2).
 	static void SetCullEnabled(bool value) { s_cullEnabled = value; }
 	static bool IsCullEnabled() { return s_cullEnabled; }
+
+	// 초목 그림자를 켜고 끈다 (F3). 대조 스크린샷용.
+	static void SetShadowEnabled(bool value) { s_shadowEnabled = value; }
+	static bool IsShadowEnabled() { return s_shadowEnabled; }
 
 public:
 	virtual void Load(const wstring& path) override { }
@@ -102,6 +122,7 @@ private:
 	uint32							_visibleCount = 0;
 
 	shared_ptr<Material>			_material;
+	shared_ptr<Material>			_shadowMaterial;
 	shared_ptr<Mesh>				_mesh;
 
 	float							_accTime = 0.f;
@@ -111,4 +132,5 @@ private:
 	// 메시나 머티리얼과 무관하므로 하나만 만들어 공유한다.
 	static ComPtr<ID3D12CommandSignature>	s_cmdSignature;
 	static bool								s_cullEnabled;
+	static bool								s_shadowEnabled;
 };

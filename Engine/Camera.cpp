@@ -100,9 +100,23 @@ void Camera::SortShadowObject()
 	const vector<shared_ptr<GameObject>>& gameObjects = scene->GetGameObjects();
 
 	_vecShadow.clear();
+	_vecShadowBillboard.clear();
 
 	for (auto& gameObject : gameObjects)
 	{
+		// 빌보드는 셰도우 패스에 넣을지를 자기가 정한다.
+		// 절두체 검사는 하지 않는다 - 여기서 쓰는 절두체는 광원의 것이고,
+		// 초목은 심은 범위 전체가 한 오브젝트라 잘라 봐야 전부 아니면 전무다.
+		if (gameObject->GetBillboardRenderer())
+		{
+			if (IsCulled(gameObject->GetLayerIndex()) == false
+				&& gameObject->GetBillboardRenderer()->IsCastShadow())
+			{
+				_vecShadowBillboard.push_back(gameObject);
+			}
+			continue;
+		}
+
 		if (gameObject->GetMeshRenderer() == nullptr)
 			continue;
 
@@ -154,7 +168,7 @@ void Camera::Render_Forward()
 	}
 }
 
-void Camera::Render_Shadow()
+void Camera::Render_Shadow(uint32 cascade)
 {
 	S_MatView = _matView;
 	S_MatProjection = _matProjection;
@@ -162,5 +176,10 @@ void Camera::Render_Shadow()
 	for (auto& gameObject : _vecShadow)
 	{
 		gameObject->GetMeshRenderer()->RenderShadow();
+	}
+
+	for (auto& gameObject : _vecShadowBillboard)
+	{
+		gameObject->GetBillboardRenderer()->RenderShadow(cascade);
 	}
 }

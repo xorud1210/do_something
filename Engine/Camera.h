@@ -24,7 +24,7 @@ public:
 
 	void Render_Deferred();
 	void Render_Forward();
-	void Render_Shadow();
+	void Render_Shadow(uint32 cascade = 0);
 
 	void SetCullingMaskLayerOnOff(uint8 layer, bool on)
 	{
@@ -81,6 +81,7 @@ private:
 	vector<shared_ptr<GameObject>>	_vecParticle;
 	vector<shared_ptr<GameObject>>	_vecBillboard;
 	vector<shared_ptr<GameObject>>	_vecShadow;
+	vector<shared_ptr<GameObject>>	_vecShadowBillboard;
 
 public:
 	// TEMP

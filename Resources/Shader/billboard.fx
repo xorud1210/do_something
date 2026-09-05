@@ -50,30 +50,21 @@ VS_OUT VS_Main(VS_IN input)
     return output;
 }
 
-struct GS_OUT
+// 사각형의 네 꼭짓점과 법선을 만든다.
+//
+// 화면 패스와 셰도우 패스가 반드시 같은 사각형을 만들어야 한다.
+// 두 셰이더에 같은 코드를 복사해 두면 바람 상수 하나만 어긋나도
+// 그림자가 실제 풀과 다른 자리에 생긴다. 그래서 함수 하나로 묶었다.
+//
+// camWorld 를 인자로 받는 것이 핵심이다.
+// 화면 패스는 뷰 역행렬에서 카메라 위치를 뽑으면 되지만, 셰도우 패스에서
+// 그 행렬은 '광원'의 것이라 그대로 쓰면 사각형이 광원을 향해 돌아간다.
+// 빌보드는 어느 패스에서 그리든 메인 카메라를 향해 서 있어야 한다.
+void BuildQuad(uint id, float3 camWorld, out float3 corner[4], out float3 worldNormal)
 {
-    float4 pos : SV_Position;
-    float2 uv : TEXCOORD;
-    float3 viewPos : POSITION;
-    float3 viewNormal : NORMAL;
-};
-
-// GS_Main
-// g_float_0 : 누적 시간
-// g_float_1 : 바람 세기 (월드 단위)
-// g_float_2 : 바람 주파수
-// g_float_3 : 가로 대비 세로 비율
-// g_vec4_0  : 바람 방향 (xyz)
-[maxvertexcount(6)]
-void GS_Main(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
-{
-    uint id = (uint) input[0].id;
-    float3 basePos = input[0].worldPos.xyz;
+    float3 basePos = g_billboard[id].worldPos;
     float scale = g_billboard[id].scale;
     float phase = g_billboard[id].phase;
-
-    // 카메라의 월드 위치는 뷰 역행렬의 이동 성분이다.
-    float3 camWorld = float3(g_matViewInv._41, g_matViewInv._42, g_matViewInv._43);
 
     // 축 고정 빌보드.
     // 카메라 방향에서 Y 성분을 빼고 XZ 평면에서만 돌린다.
@@ -95,21 +86,47 @@ void GS_Main(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
     float3 windOffset = normalize(g_vec4_0.xyz + float3(0.0001f, 0.f, 0.f))
                       * wave * g_float_1;
 
-    float3 corner[4];
     corner[0] = basePos - right * halfWidth;                            // 좌하
     corner[1] = basePos + right * halfWidth;                            // 우하
     corner[2] = basePos + right * halfWidth + up * height + windOffset; // 우상
     corner[3] = basePos - right * halfWidth + up * height + windOffset; // 좌상
 
-    float2 uvs[4] =
-    {
-        float2(0.f, 1.f), float2(1.f, 1.f), float2(1.f, 0.f), float2(0.f, 0.f)
-    };
-
     // 법선.
     // 사각형의 실제 법선을 그대로 쓰면 풀이 카메라를 향한 판때기처럼 번들거린다.
     // 위쪽으로 많이 기울여서 땅과 비슷하게 조명받게 한다.
-    float3 worldNormal = normalize(up * 0.7f + toCam * 0.3f);
+    worldNormal = normalize(up * 0.7f + toCam * 0.3f);
+}
+
+static const float2 g_quadUV[4] =
+{
+    float2(0.f, 1.f), float2(1.f, 1.f), float2(1.f, 0.f), float2(0.f, 0.f)
+};
+
+struct GS_OUT
+{
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD;
+    float3 viewPos : POSITION;
+    float3 viewNormal : NORMAL;
+};
+
+// GS_Main
+// g_float_0 : 누적 시간
+// g_float_1 : 바람 세기 (월드 단위)
+// g_float_2 : 바람 주파수
+// g_float_3 : 가로 대비 세로 비율
+// g_vec4_0  : 바람 방향 (xyz)
+[maxvertexcount(6)]
+void GS_Main(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
+{
+    uint id = (uint) input[0].id;
+
+    // 화면 패스에서는 뷰 역행렬의 이동 성분이 곧 카메라의 월드 위치다.
+    float3 camWorld = float3(g_matViewInv._41, g_matViewInv._42, g_matViewInv._43);
+
+    float3 corner[4];
+    float3 worldNormal;
+    BuildQuad(id, camWorld, corner, worldNormal);
 
     GS_OUT output[4];
 
@@ -120,7 +137,7 @@ void GS_Main(point VS_OUT input[1], inout TriangleStream<GS_OUT> outputStream)
         output[i].pos = mul(viewPos, g_matProjection);
         output[i].viewPos = viewPos.xyz;
         output[i].viewNormal = normalize(mul(float4(worldNormal, 0.f), g_matView).xyz);
-        output[i].uv = uvs[i];
+        output[i].uv = g_quadUV[i];
     }
 
     outputStream.Append(output[0]);
@@ -160,6 +177,62 @@ PS_OUT PS_Main(GS_OUT input)
     output.color = float4(color.rgb, 1.f);
 
     return output;
+}
+
+// ---------------------------------------------------------------------------
+// 셰도우 패스
+//
+// 같은 사각형을 광원 카메라로 다시 그려 깊이만 남긴다.
+// 여기서 알파 테스트를 빼면 풀이 판때기 그림자를 던져 땅이 통째로 검어진다.
+// 잎 사이가 비어 있다는 사실이 셰도우 맵에도 들어가야 한다.
+// ---------------------------------------------------------------------------
+
+struct GS_SHADOW_OUT
+{
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD;
+    float4 clipPos : POSITION;
+};
+
+// GS_Shadow
+// g_vec4_1 : 메인 카메라의 월드 위치.
+//            셰도우 패스의 g_matViewInv 는 광원의 것이라 쓸 수 없다.
+[maxvertexcount(6)]
+void GS_Shadow(point VS_OUT input[1], inout TriangleStream<GS_SHADOW_OUT> outputStream)
+{
+    uint id = (uint) input[0].id;
+
+    float3 corner[4];
+    float3 worldNormal;
+    BuildQuad(id, g_vec4_1.xyz, corner, worldNormal);
+
+    GS_SHADOW_OUT output[4];
+
+    [unroll]
+    for (int i = 0; i < 4; ++i)
+    {
+        float4 viewPos = mul(float4(corner[i], 1.f), g_matView);
+        output[i].pos = mul(viewPos, g_matProjection);
+        output[i].clipPos = output[i].pos;
+        output[i].uv = g_quadUV[i];
+    }
+
+    outputStream.Append(output[0]);
+    outputStream.Append(output[3]);
+    outputStream.Append(output[2]);
+    outputStream.RestartStrip();
+
+    outputStream.Append(output[0]);
+    outputStream.Append(output[2]);
+    outputStream.Append(output[1]);
+    outputStream.RestartStrip();
+}
+
+float4 PS_Shadow(GS_SHADOW_OUT input) : SV_Target
+{
+    clip(g_tex_0.Sample(g_sam_0, input.uv).a - 0.35f);
+
+    return float4(input.clipPos.z / input.clipPos.w, 0.f, 0.f, 0.f);
 }
 
 #endif

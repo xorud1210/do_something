@@ -302,6 +302,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		// 심은 범위(2600)보다 짧게 자르면 풀밭 가장자리에 원형 경계가 눈에 보인다.
 		// 페이드 없이 자를 거면 아예 안 자르는 편이 낫다.
 		desc.maxDrawDistance = 0.f;
+		desc.castShadow = true;
 
 		shared_ptr<BillboardRenderer> billboard = make_shared<BillboardRenderer>();
 		billboard->SetDesc(desc);
@@ -435,7 +436,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		light->AddComponent(make_shared<Transform>());
 		light->GetTransform()->SetLocalPosition(Vec3(0, 1000, 500));
 		light->AddComponent(make_shared<Light>());
-		light->GetLight()->SetLightDirection(Vec3(0, -1, 1.f));
+		light->GetLight()->SetLightDirection(Vec3(0.45f, -0.42f, 1.f));
 		light->GetLight()->SetLightType(LIGHT_TYPE::DIRECTIONAL_LIGHT);
 		light->GetLight()->SetDiffuse(Vec3(1.f, 1.f, 1.f));
 		light->GetLight()->SetAmbient(Vec3(0.1f, 0.1f, 0.1f));

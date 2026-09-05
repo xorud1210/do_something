@@ -9,6 +9,8 @@
 #include "Timer.h"
 #include "Engine.h"
 #include "Camera.h"
+#include "SceneManager.h"
+#include "Scene.h"
 
 #include <random>
 
@@ -17,6 +19,7 @@ constexpr uint32 FOLIAGE_CULL_GROUP_SIZE = 256;
 
 ComPtr<ID3D12CommandSignature> BillboardRenderer::s_cmdSignature;
 bool BillboardRenderer::s_cullEnabled = true;
+bool BillboardRenderer::s_shadowEnabled = true;
 
 BillboardRenderer::BillboardRenderer() : Component(COMPONENT_TYPE::BILLBOARD_RENDERER)
 {
@@ -92,6 +95,19 @@ void BillboardRenderer::SetDesc(const BillboardDesc& desc)
 	Vec3 wind = _desc.windDirection;
 	wind.Normalize();
 	_material->SetVec4(0, Vec4(wind.x, wind.y, wind.z, 0.f));
+
+	// 셰도우 패스용 머티리얼.
+	// 셰이더만 다르고 바람/크기 상수는 화면과 완전히 같아야 한다.
+	// 하나라도 어긋나면 그림자가 실제 풀과 다른 자리에 생긴다.
+	if (_desc.castShadow)
+	{
+		_shadowMaterial = GET_SINGLE(Resources)->Get<Material>(L"BillboardShadow")->Clone();
+		_shadowMaterial->SetTexture(0, texture);
+		_shadowMaterial->SetFloat(1, _desc.windStrength);
+		_shadowMaterial->SetFloat(2, _desc.windFrequency);
+		_shadowMaterial->SetFloat(3, _desc.heightRatio);
+		_shadowMaterial->SetVec4(0, Vec4(wind.x, wind.y, wind.z, 0.f));
+	}
 
 	CreateCullResources();
 }
@@ -238,6 +254,44 @@ void BillboardRenderer::CullOnGPU()
 		_visibleCount = _readback[1];
 }
 
+void BillboardRenderer::RenderShadow(uint32 cascade)
+{
+	if (_shadowMaterial == nullptr || _instanceCount == 0)
+		return;
+
+	// 설정한 구간까지만 그린다.
+	if (cascade >= _desc.shadowCascadeCount)
+		return;
+
+	GetTransform()->PushData();
+
+	// 셰도우 패스는 원본을 통째로 그린다.
+	//
+	// 화면용으로 추린 목록을 재활용하면 안 된다. 카메라 절두체 밖에 있는 풀도
+	// 광원 방향에 따라 화면 안으로 그림자를 드리울 수 있기 때문이다.
+	// 그 목록을 쓰면 화면 가장자리에서 그림자가 잘려 나간다.
+	_instanceBuffer->PushGraphicsData(SRV_REGISTER::t9);
+
+	// 사각형을 어느 쪽으로 돌릴지는 '메인 카메라' 가 정한다.
+	// 이 패스에서 g_matViewInv 는 광원의 것이라 셰이더가 자기 힘으로 알 수 없다.
+	// 광원 쪽으로 돌려버리면 그림자 모양이 화면의 풀과 달라진다.
+	Vec3 camWorld = Vec3(0.f, 0.f, 0.f);
+	if (shared_ptr<Scene> scene = GET_SINGLE(SceneManager)->GetActiveScene())
+	{
+		if (shared_ptr<Camera> mainCamera = scene->GetMainCamera())
+		{
+			Matrix inv = mainCamera->GetViewMatrix().Invert();
+			camWorld = Vec3(inv._41, inv._42, inv._43);
+		}
+	}
+
+	_shadowMaterial->SetFloat(0, _accTime);
+	_shadowMaterial->SetVec4(1, Vec4(camWorld.x, camWorld.y, camWorld.z, 0.f));
+	_shadowMaterial->PushGraphicsData();
+
+	_mesh->Render(_instanceCount);
+}
+
 void BillboardRenderer::Render()
 {
 	if (_instanceBuffer == nullptr || _instanceCount == 0)
@@ -264,7 +318,8 @@ void BillboardRenderer::Render()
 
 	GEngine->SetStatusText(L"Foliage " + std::to_wstring(_visibleCount)
 		+ L" / " + std::to_wstring(_instanceCount)
-		+ (cull ? L"" : L" (cull off)"));
+		+ (cull ? L"" : L" (cull off)")
+		+ (IsCastShadow() ? L"" : L" (shadow off)"));
 
 	if (cull == false)
 	{

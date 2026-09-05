@@ -19,6 +19,7 @@ enum class KEY_TYPE
 
 	F1 = VK_F1,
 	F2 = VK_F2,
+	F3 = VK_F3,
 	LSHIFT = VK_LSHIFT,
 
 	LBUTTON = VK_LBUTTON,

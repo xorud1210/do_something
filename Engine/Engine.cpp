@@ -47,6 +47,10 @@ void Engine::Update()
 	if (INPUT->GetButtonDown(KEY_TYPE::F2))
 		BillboardRenderer::SetCullEnabled(BillboardRenderer::IsCullEnabled() == false);
 
+	// F3 : 초목 그림자 On/Off.
+	if (INPUT->GetButtonDown(KEY_TYPE::F3))
+		BillboardRenderer::SetShadowEnabled(BillboardRenderer::IsShadowEnabled() == false);
+
 	GET_SINGLE(Timer)->Update();
 	GET_SINGLE(SceneManager)->Update();
 	GET_SINGLE(InstancingManager)->ClearBuffer();

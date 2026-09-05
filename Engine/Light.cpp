@@ -104,7 +104,7 @@ void Light::RenderShadow()
 
 		shadowCamera->SetViewMatrix(_cascadeView[c]);
 		shadowCamera->SetProjectionMatrix(_cascadeProj[c]);
-		shadowCamera->Render_Shadow();
+		shadowCamera->Render_Shadow(c);
 	}
 }
 

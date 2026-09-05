@@ -721,6 +721,33 @@ void Resources::CreateDefaultShader()
 		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\billboard.fx", info, arg);
 		Add<Shader>(L"Billboard", shader);
 	}
+
+	// Billboard (Shadow)
+	// 화면과 같은 사각형을 광원 카메라로 다시 그린다.
+	// 알파 테스트를 그대로 하므로 잎 사이의 빈 곳이 셰도우 맵에도 남는다.
+	{
+		ShaderInfo info =
+		{
+			SHADER_TYPE::SHADOW,
+			RASTERIZER_TYPE::CULL_NONE,
+			DEPTH_STENCIL_TYPE::LESS,
+			BLEND_TYPE::DEFAULT,
+			D3D_PRIMITIVE_TOPOLOGY_POINTLIST
+		};
+
+		ShaderArg arg =
+		{
+			"VS_Main",
+			"",
+			"",
+			"GS_Shadow",
+			"PS_Shadow"
+		};
+
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\billboard.fx", info, arg);
+		Add<Shader>(L"BillboardShadow", shader);
+	}
 }
 
 void Resources::CreateDefaultMaterial()
@@ -803,6 +830,14 @@ void Resources::CreateDefaultMaterial()
 		shared_ptr<Material> material = make_shared<Material>();
 		material->SetShader(shader);
 		Add<Material>(L"Billboard", material);
+	}
+
+	// BillboardShadow
+	{
+		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"BillboardShadow");
+		shared_ptr<Material> material = make_shared<Material>();
+		material->SetShader(shader);
+		Add<Material>(L"BillboardShadow", material);
 	}
 
 	// Compute Shader
