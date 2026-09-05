@@ -1,5 +1,6 @@
 #pragma once
 #include "Component.h"
+#include "RenderTargetGroup.h"
 
 enum class LIGHT_TYPE : uint8
 {
@@ -60,6 +61,16 @@ public:
 
 	void SetLightIndex(int8 index) { _lightIndex = index; }
 
+	// 그림자를 드리울 최대 거리. 카메라 far 를 그대로 쓰면 셰도우 맵 해상도가
+	// 아무 데도 못 미친다. 여기까지만 나눠 담는다.
+	void SetShadowDistance(float value) { _shadowDistance = value; }
+	void SetShadowBias(float value) { _shadowBias = value; }
+
+private:
+	// 카메라 절두체를 거리로 잘라 구간마다 셰도우 맵을 따로 맞춘다.
+	// 가까운 구간은 좁은 영역을 같은 해상도로 덮으니 그만큼 촘촘해진다.
+	void UpdateCascades();
+
 private:
 	LightInfo _lightInfo = {};
 
@@ -68,5 +79,19 @@ private:
 	shared_ptr<class Material> _lightMaterial;
 
 	shared_ptr<GameObject> _shadowCamera;
+
+	// 캐스케이드
+	array<Matrix, SHADOW_CASCADE_COUNT>	_cascadeView = {};
+	array<Matrix, SHADOW_CASCADE_COUNT>	_cascadeProj = {};
+	array<Matrix, SHADOW_CASCADE_COUNT>	_cascadeVP = {};
+	array<float, SHADOW_CASCADE_COUNT>	_cascadeSplit = {};		// 뷰 공간 깊이 경계
+	array<float, SHADOW_CASCADE_COUNT>	_cascadeTexelWorld = {};	// 텍셀 하나의 월드 크기
+
+	float _shadowDistance = 3000.f;
+	float _cascadeLambda = 0.5f;	// 0 이면 균등 분할, 1 이면 로그 분할
+	float _shadowBias = 0.0015f;
+
+	// F1 로 켠다. 어느 픽셀이 몇 번 캐스케이드를 쓰는지 색으로 보여준다.
+	bool _cascadeDebug = false;
 };
 

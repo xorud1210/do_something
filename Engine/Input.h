@@ -17,6 +17,8 @@ enum class KEY_TYPE
 	Z = 'Z',
 	C = 'C',
 
+	F1 = VK_F1,
+
 	LBUTTON = VK_LBUTTON,
 	RBUTTON = VK_RBUTTON,
 };

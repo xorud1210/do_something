@@ -48,6 +48,17 @@ public:
 	Matrix& GetViewMatrix() { return _matView; }
 	Matrix& GetProjectionMatrix() { return _matProjection; }
 
+	// 캐스케이드 셰도우는 카메라 절두체를 잘라 만든 영역에 맞춰 행렬을 직접 만든다.
+	// 트랜스폼에서 유도되는 값이 아니라 Light 가 계산해 넣어준다.
+	void SetViewMatrix(const Matrix& matrix) { _matView = matrix; }
+	void SetProjectionMatrix(const Matrix& matrix) { _matProjection = matrix; }
+
+	float GetNear() const { return _near; }
+	float GetFar() const { return _far; }
+	float GetFOV() const { return _fov; }
+	float GetWidth() const { return _width; }
+	float GetHeight() const { return _height; }
+
 private:
 	PROJECTION_TYPE _type = PROJECTION_TYPE::PERSPECTIVE;
 

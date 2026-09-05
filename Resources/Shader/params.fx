@@ -74,5 +74,6 @@ StructuredBuffer<Matrix> g_mat_bone : register(t7);
 
 SamplerState g_sam_0 : register(s0); // Anisotropic + Wrap
 SamplerState g_sam_1 : register(s1); // Linear + Clamp. 화면 전체 패스용
+SamplerState g_sam_2 : register(s2); // Point + Clamp. 셰도우 맵 비교용
 
 #endif

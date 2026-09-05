@@ -28,6 +28,11 @@ enum
 // 밝은 곳이 얼마나 밝았는지가 사라진다.
 constexpr DXGI_FORMAT HDR_RENDER_TARGET_FORMAT = DXGI_FORMAT_R16G16B16A16_FLOAT;
 
+// 셰도우 아틀라스. 4096 한 장을 2x2 로 나눠 캐스케이드를 담는다.
+constexpr uint32 SHADOW_MAP_SIZE = 4096;
+constexpr uint32 SHADOW_CASCADE_COUNT = 3;
+constexpr uint32 SHADOW_TILE_SIZE = SHADOW_MAP_SIZE / 2;
+
 struct RenderTarget
 {
 	shared_ptr<Texture> target;

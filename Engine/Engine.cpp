@@ -134,13 +134,22 @@ void Engine::CreateRenderTargetGroups()
 	{
 		vector<RenderTarget> rtVec(RENDER_TARGET_SHADOW_GROUP_MEMBER_COUNT);
 
+		// 아무것도 안 그려진 곳은 "가장 먼 곳"이어야 한다.
+		// 0 으로 지우면 그게 "가장 가까운 곳"이 되어 온 화면이 그림자가 된다.
+		rtVec[0].clearColor[0] = 1.f;
+		rtVec[0].clearColor[1] = 1.f;
+		rtVec[0].clearColor[2] = 1.f;
+		rtVec[0].clearColor[3] = 1.f;
+
+		// 4096 한 장을 2x2 로 나눠 캐스케이드 3장을 담는다. 타일당 2048.
 		rtVec[0].target = GET_SINGLE(Resources)->CreateTexture(L"ShadowTarget",
-			DXGI_FORMAT_R32_FLOAT, 4096, 4096,
+			DXGI_FORMAT_R32_FLOAT, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE,
 			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+			D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+			Vec4(1.f, 1.f, 1.f, 1.f));
 
 		shared_ptr<Texture> shadowDepthTexture = GET_SINGLE(Resources)->CreateTexture(L"ShadowDepthStencil",
-			DXGI_FORMAT_D32_FLOAT, 4096, 4096,
+			DXGI_FORMAT_D32_FLOAT, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE,
 			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
 			D3D12_HEAP_FLAG_NONE, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 

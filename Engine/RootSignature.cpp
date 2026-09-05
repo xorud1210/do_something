@@ -20,6 +20,15 @@ void RootSignature::CreateGraphicsRootSignature()
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
 
+	// 셰도우 맵은 깊이 값이다. 선형 필터링으로 이웃 텍셀과 섞은 뒤 비교하면
+	// "섞인 깊이"와 비교하는 셈이라 의미가 없다. 반드시 점 샘플링으로 읽고,
+	// 부드럽게 만드는 것은 비교 결과 쪽을 여러 번 평균 내서(PCF) 한다.
+	_samplerDesc[2] = CD3DX12_STATIC_SAMPLER_DESC(2,
+		D3D12_FILTER_MIN_MAG_MIP_POINT,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP);
+
 	CD3DX12_DESCRIPTOR_RANGE ranges[] =
 	{
 		CD3DX12_DESCRIPTOR_RANGE(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, CBV_REGISTER_COUNT - 1, 1), // b1~b4
