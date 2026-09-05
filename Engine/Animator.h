@@ -44,6 +44,11 @@ public:
 	void SetAnimClip(const vector<AnimClipInfo>* animClips);
 	void PushData();
 
+	// 이미 계산해 둔 본 행렬을 그래픽스 파이프라인에 다시 묶기만 한다.
+	// 셰도우 패스는 디퍼드보다 먼저 도는데, 여기서 컴퓨트를 또 돌릴 이유는 없다.
+	// 한 프레임 전 포즈를 쓰게 되지만 눈에 띄지 않는다.
+	bool PushBoneData();
+
 	int32 GetAnimCount() { return _animClips ? static_cast<int32>(_animClips->size()) : 0; }
 	int32 GetCurrentClipIndex() { return _base.current.clipIndex; }
 

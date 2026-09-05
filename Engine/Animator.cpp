@@ -269,6 +269,15 @@ Vec4 Animator::PackChannel(const AnimChannel& channel)
 		channel.frameRatio);
 }
 
+bool Animator::PushBoneData()
+{
+	if (_boneFinalMatrix == nullptr || _boneFinalMatrix->GetElementCount() == 0)
+		return false;
+
+	_boneFinalMatrix->PushGraphicsData(SRV_REGISTER::t7);
+	return true;
+}
+
 void Animator::PushData()
 {
 	if (_bones == nullptr || _animClips == nullptr || _animClips->empty())
