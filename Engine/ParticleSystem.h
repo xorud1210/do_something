@@ -73,7 +73,7 @@ struct ParticleDesc
 
 	bool	additive = false;			// 불꽃, 빛 같은 발광체는 가산이 맞다
 
-	wstring	textureKey = L"ParticleGlow";
+	// 키는 경로에서 나온다 (BillboardDesc 와 같은 이유).
 	wstring	texturePath = L"..\\Resources\\Texture\\Particle\\glow.png";
 };
 

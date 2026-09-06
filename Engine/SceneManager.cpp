@@ -176,7 +176,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		}
 		{
 			shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"Skybox");
-			shared_ptr<Texture> texture = GET_SINGLE(Resources)->LoadColorTexture(L"Sky01", L"..\\Resources\\Texture\\Sky01.jpg");
+			shared_ptr<Texture> texture = GET_SINGLE(Resources)->LoadTexture(L"..\\Resources\\Texture\\Sky01.jpg", true);
 			shared_ptr<Material> material = make_shared<Material>();
 			material->SetShader(shader);
 			material->SetTexture(0, texture);
@@ -360,7 +360,6 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		desc.maxSpin = 4.f;
 		desc.softFadeDistance = 20.f;
 		desc.additive = true;
-		desc.textureKey = L"ParticleSpark";
 		desc.texturePath = L"..\\Resources\\Texture\\Particle\\spark.png";
 
 		shared_ptr<ParticleSystem> particle = make_shared<ParticleSystem>();

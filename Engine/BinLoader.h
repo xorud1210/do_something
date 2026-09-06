@@ -158,7 +158,7 @@ private:
 	// srgb 는 이 텍스처가 색인지 데이터인지다.
 	// 디퓨즈는 색이라 선형으로 풀어야 하고, 노멀맵은 숫자 그대로여야 한다.
 	void	LoadTextureIfExists(const wstring& path, bool srgb);
-	shared_ptr<class Texture> FindTexture(const wstring& path);
+	shared_ptr<class Texture> FindTexture(const wstring& path, bool srgb);
 	void	CreateTextures();
 	void	CreateMaterials();
 

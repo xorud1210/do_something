@@ -146,23 +146,14 @@ void BinLoader::LoadTextureIfExists(const wstring& path, bool srgb)
 	if (fs::exists(path) == false)
 		return;
 
-	wstring key = fs::path(path).filename().wstring();
-	if (GET_SINGLE(Resources)->Get<Texture>(key) != nullptr)
-		return;
-
-	if (srgb)
-		GET_SINGLE(Resources)->LoadColorTexture(key, path);
-	else
-		GET_SINGLE(Resources)->Load<Texture>(key, path);
+	// 캐시 키는 Resources 가 정한다. 여기서 파일명만 떼어 쓰면
+	// 다른 폴더의 같은 이름이 서로를 덮고, sRGB 해석도 섞인다.
+	GET_SINGLE(Resources)->LoadTexture(path, srgb);
 }
 
-shared_ptr<Texture> BinLoader::FindTexture(const wstring& path)
+shared_ptr<Texture> BinLoader::FindTexture(const wstring& path, bool srgb)
 {
-	if (path.empty())
-		return nullptr;
-
-	wstring key = fs::path(path).filename().wstring();
-	return GET_SINGLE(Resources)->Get<Texture>(key);
+	return GET_SINGLE(Resources)->FindTexture(path, srgb);
 }
 
 void BinLoader::CreateTextures()
@@ -199,15 +190,16 @@ void BinLoader::CreateMaterials()
 			material->SetName(info.name);
 			material->SetShader(GET_SINGLE(Resources)->Get<Shader>(L"Deferred"));
 
-			shared_ptr<Texture> diffuse = FindTexture(ResolveTexturePath(info.diffuseTexName));
+			// 로드할 때와 같은 해석으로 찾아야 한다. 디퓨즈만 색이다.
+			shared_ptr<Texture> diffuse = FindTexture(ResolveTexturePath(info.diffuseTexName), true);
 			if (diffuse)
 				material->SetTexture(0, diffuse);
 
-			shared_ptr<Texture> normal = FindTexture(ResolveTexturePath(info.normalTexName));
+			shared_ptr<Texture> normal = FindTexture(ResolveTexturePath(info.normalTexName), false);
 			if (normal)
 				material->SetTexture(1, normal);
 
-			shared_ptr<Texture> specular = FindTexture(ResolveTexturePath(info.specularTexName));
+			shared_ptr<Texture> specular = FindTexture(ResolveTexturePath(info.specularTexName), false);
 			if (specular)
 				material->SetTexture(2, specular);
 

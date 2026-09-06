@@ -310,19 +310,36 @@ shared_ptr<Texture> Resources::CreateTexture(const wstring& name, DXGI_FORMAT fo
 	return texture;
 }
 
-shared_ptr<Texture> Resources::LoadColorTexture(const wstring& key, const wstring& path)
+wstring Resources::MakeTextureKey(const wstring& path, bool srgb)
 {
+	return path + (srgb ? L"|srgb" : L"|linear");
+}
+
+shared_ptr<Texture> Resources::LoadTexture(const wstring& path, bool srgb)
+{
+	if (path.empty())
+		return nullptr;
+
 	KeyObjMap& keyObjMap = _resources[static_cast<uint8>(GetObjectType<Texture>())];
+	const wstring key = MakeTextureKey(path, srgb);
 
 	auto findIt = keyObjMap.find(key);
 	if (findIt != keyObjMap.end())
 		return static_pointer_cast<Texture>(findIt->second);
 
 	shared_ptr<Texture> texture = make_shared<Texture>();
-	texture->Load(path, true);
+	texture->Load(path, srgb);
 	keyObjMap[key] = texture;
 
 	return texture;
+}
+
+shared_ptr<Texture> Resources::FindTexture(const wstring& path, bool srgb)
+{
+	if (path.empty())
+		return nullptr;
+
+	return Get<Texture>(MakeTextureKey(path, srgb));
 }
 
 shared_ptr<Texture> Resources::CreateTextureFromResource(const wstring& name, ComPtr<ID3D12Resource> tex2D)
@@ -893,8 +910,8 @@ void Resources::CreateDefaultMaterial()
 	// GameObject
 	{
 		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"Deferred");
-		shared_ptr<Texture> texture = GET_SINGLE(Resources)->LoadColorTexture(L"Leather", L"..\\Resources\\Texture\\Leather.jpg");
-		shared_ptr<Texture> texture2 = GET_SINGLE(Resources)->Load<Texture>(L"Leather_Normal", L"..\\Resources\\Texture\\Leather_Normal.jpg");
+		shared_ptr<Texture> texture = GET_SINGLE(Resources)->LoadTexture(L"..\\Resources\\Texture\\Leather.jpg", true);
+		shared_ptr<Texture> texture2 = GET_SINGLE(Resources)->LoadTexture(L"..\\Resources\\Texture\\Leather_Normal.jpg", false);
 		shared_ptr<Material> material = make_shared<Material>();
 		material->SetShader(shader);
 		material->SetTexture(0, texture);
@@ -921,7 +938,7 @@ void Resources::CreateDefaultMaterial()
 	// Terrain
 	{
 		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"Terrain");
-		shared_ptr<Texture> texture = GET_SINGLE(Resources)->LoadColorTexture(L"Terrain", L"..\\Resources\\Texture\\Terrain\\terrain.png");
+		shared_ptr<Texture> texture = GET_SINGLE(Resources)->LoadTexture(L"..\\Resources\\Texture\\Terrain\\terrain.png", true);
 		shared_ptr<Material> material = make_shared<Material>();
 		material->SetShader(shader);
 		material->SetTexture(0, texture);

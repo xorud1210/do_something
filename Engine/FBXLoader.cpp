@@ -294,7 +294,7 @@ void FBXLoader::CreateTextures()
 				wstring filename = fs::path(relativePath).filename();
 				wstring fullPath = _resourceDirectory + L"\\" + filename;
 				if (filename.empty() == false)
-					GET_SINGLE(Resources)->LoadColorTexture(filename, fullPath);
+					GET_SINGLE(Resources)->LoadTexture(fullPath, true);
 			}
 
 			// NormalTexture
@@ -303,7 +303,7 @@ void FBXLoader::CreateTextures()
 				wstring filename = fs::path(relativePath).filename();
 				wstring fullPath = _resourceDirectory + L"\\" + filename;
 				if (filename.empty() == false)
-					GET_SINGLE(Resources)->Load<Texture>(filename, fullPath);
+					GET_SINGLE(Resources)->LoadTexture(fullPath, false);
 			}
 
 			// SpecularTexture
@@ -312,7 +312,7 @@ void FBXLoader::CreateTextures()
 				wstring filename = fs::path(relativePath).filename();
 				wstring fullPath = _resourceDirectory + L"\\" + filename;
 				if (filename.empty() == false)
-					GET_SINGLE(Resources)->Load<Texture>(filename, fullPath);
+					GET_SINGLE(Resources)->LoadTexture(fullPath, false);
 			}
 		}
 	}
@@ -332,8 +332,8 @@ void FBXLoader::CreateMaterials()
 			{
 				wstring diffuseName = _meshes[i].materials[j].diffuseTexName.c_str();
 				wstring filename = fs::path(diffuseName).filename();
-				wstring key = filename;
-				shared_ptr<Texture> diffuseTexture = GET_SINGLE(Resources)->Get<Texture>(key);
+				wstring fullPath = _resourceDirectory + L"\\" + filename;
+				shared_ptr<Texture> diffuseTexture = GET_SINGLE(Resources)->FindTexture(fullPath, true);
 				if (diffuseTexture)
 					material->SetTexture(0, diffuseTexture);
 			}
@@ -341,8 +341,8 @@ void FBXLoader::CreateMaterials()
 			{
 				wstring normalName = _meshes[i].materials[j].normalTexName.c_str();
 				wstring filename = fs::path(normalName).filename();
-				wstring key = filename;
-				shared_ptr<Texture> normalTexture = GET_SINGLE(Resources)->Get<Texture>(key);
+				wstring fullPath = _resourceDirectory + L"\\" + filename;
+				shared_ptr<Texture> normalTexture = GET_SINGLE(Resources)->FindTexture(fullPath, false);
 				if (normalTexture)
 					material->SetTexture(1, normalTexture);
 			}
@@ -350,8 +350,8 @@ void FBXLoader::CreateMaterials()
 			{
 				wstring specularName = _meshes[i].materials[j].specularTexName.c_str();
 				wstring filename = fs::path(specularName).filename();
-				wstring key = filename;
-				shared_ptr<Texture> specularTexture = GET_SINGLE(Resources)->Get<Texture>(key);
+				wstring fullPath = _resourceDirectory + L"\\" + filename;
+				shared_ptr<Texture> specularTexture = GET_SINGLE(Resources)->FindTexture(fullPath, false);
 				if (specularTexture)
 					material->SetTexture(2, specularTexture);
 			}

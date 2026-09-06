@@ -51,7 +51,8 @@ struct BillboardDesc
 	// 줄이는 것은 순수한 비용/품질 다이얼이다 - 먼 풀밭이 평평해지는 대신 싸진다.
 	uint32	shadowCascadeCount = 3;
 
-	wstring	textureKey = L"FoliageGrass";
+	// 키는 경로에서 나온다. 따로 두면 경로가 다른데 키가 같은 묶음 둘이
+	// 조용히 같은 텍스처를 쓰게 된다.
 	wstring	texturePath = L"..\\Resources\\Texture\\Foliage\\grass.png";
 
 	uint32	seed = 1;
