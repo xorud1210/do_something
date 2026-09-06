@@ -23,6 +23,7 @@ public:
 
 	shared_ptr<Mesh> GetMesh() { return _mesh; }
 	shared_ptr<Material> GetMaterial(uint32 idx = 0) { return _materials[idx]; }
+	uint32 GetMaterialCount() const { return static_cast<uint32>(_materials.size()); }
 
 	void SetMesh(shared_ptr<Mesh> mesh) { _mesh = mesh; }
 	void SetMaterial(shared_ptr<Material> material, uint32 idx = 0);

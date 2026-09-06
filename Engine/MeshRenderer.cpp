@@ -49,6 +49,11 @@ void MeshRenderer::Render()
 		const bool skinned = GetAnimator() ? GetAnimator()->PushBoneData() : false;
 		material->SetInt(1, skinned ? 1 : 0);
 
+		// 인스턴싱 여부. 켜면 셰이더가 상수 버퍼 대신 정점 버퍼의 행렬을 쓴다.
+		// 아무도 이 값을 쓰지 않고 있었다 - 같은 메시·머티리얼 오브젝트가
+		// 둘 이상인 경우가 씬에 없어서 아래 인스턴싱 경로가 아예 안 돌았다.
+		material->SetInt(0, 0);
+
 		material->PushGraphicsData();
 		_mesh->Render(1, i);
 	}
@@ -70,6 +75,9 @@ void MeshRenderer::Render(shared_ptr<InstancingBuffer>& buffer)
 
 		const bool skinned = GetAnimator() ? GetAnimator()->PushBoneData() : false;
 		material->SetInt(1, skinned ? 1 : 0);
+
+		// 여기서는 트랜스폼 상수 버퍼를 밀지 않는다. 행렬이 정점 버퍼로 들어온다.
+		material->SetInt(0, 1);
 
 		material->PushGraphicsData();
 		_mesh->Render(buffer, i);

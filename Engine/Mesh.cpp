@@ -343,6 +343,7 @@ shared_ptr<Mesh> Mesh::CreateFromBin(const BinMeshInfo* meshInfo, BinLoader& loa
 	shared_ptr<Mesh> mesh = make_shared<Mesh>();
 	mesh->SetName(meshInfo->name);
 	mesh->CreateVertexBuffer(meshInfo->vertices);
+	mesh->CreateBounds(meshInfo->vertices);
 
 	for (const vector<uint32>& buffer : meshInfo->indices)
 	{
