@@ -56,6 +56,7 @@ public:
 private:
 	void CreateVertexBuffer(const vector<Vertex>& buffer);
 	void CreateIndexBuffer(const vector<uint32>& buffer);
+	void CreateBounds(const vector<Vertex>& buffer);
 	void CreateBonesAndAnimations(class FBXLoader& loader);
 	void CreateBonesAndAnimationsFromBin(class BinLoader& loader);
 	void CreateSkinBuffers();		// builds GPU buffers once _bones/_animClips are filled
@@ -64,6 +65,12 @@ private:
 public:
 	uint32 GetSubsetCount() { return static_cast<uint32>(_vecIndexInfo.size()); }
 	uint32 GetIndexCount(uint32 idx = 0) { return _vecIndexInfo[idx].count; }
+
+	// 로컬 공간 바운딩 구. 정점에서 직접 잰다.
+	// 스키닝 메시는 바인드 포즈 기준이라, 애니메이션이 이 밖으로 나갈 수 있다.
+	// 그래서 컬링 쪽에서 여유를 더 준다.
+	const Vec3& GetBoundsCenter() const { return _boundsCenter; }
+	float GetBoundsRadius() const { return _boundsRadius; }
 	const vector<BoneInfo>* GetBones() { return &_bones; }
 	uint32						GetBoneCount() { return static_cast<uint32>(_bones.size()); }
 	const vector<AnimClipInfo>* GetAnimClip() { return &_animClips; }
@@ -92,6 +99,9 @@ private:
 	uint32 _vertexCount = 0;
 
 	vector<IndexBufferInfo>		_vecIndexInfo;
+
+	Vec3						_boundsCenter = Vec3(0.f, 0.f, 0.f);
+	float						_boundsRadius = 0.f;
 
 	// Animation
 	vector<AnimClipInfo>			_animClips;

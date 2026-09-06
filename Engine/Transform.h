@@ -16,8 +16,16 @@ public:
 	const Vec3& GetLocalRotation() { return _localRotation; }
 	const Vec3& GetLocalScale() { return _localScale; }
 
-	// TEMP
-	float GetBoundingSphereRadius() { return max(max(_localScale.x, _localScale.y), _localScale.z); }
+	// 부모까지 곱해진 스케일 중 가장 큰 값.
+	// 구는 비균등 스케일을 담을 수 없으므로 가장 큰 축을 쓴다 - 크게 잡는 쪽이
+	// 안전하다(안 보이는 걸 그릴 뿐, 보이는 걸 지우지 않는다).
+	float GetMaxWorldScale() const
+	{
+		const float x = Vec3(_matWorld._11, _matWorld._12, _matWorld._13).Length();
+		const float y = Vec3(_matWorld._21, _matWorld._22, _matWorld._23).Length();
+		const float z = Vec3(_matWorld._31, _matWorld._32, _matWorld._33).Length();
+		return (x > y) ? ((x > z) ? x : z) : ((y > z) ? y : z);
+	}
 
 	const Matrix& GetLocalToWorldMatrix() { return _matWorld; }
 	Vec3 GetWorldPosition() { return _matWorld.Translation(); }

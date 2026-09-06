@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "GameObject.h"
 #include "Transform.h"
 #include "MeshRenderer.h"
@@ -145,6 +145,31 @@ shared_ptr<Animator> GameObject::GetAnimator()
 {
 	shared_ptr<Component> component = GetFixedComponent(COMPONENT_TYPE::ANIMATOR);
 	return static_pointer_cast<Animator>(component);
+}
+
+bool GameObject::GetWorldBoundingSphere(Vec3& outCenter, float& outRadius)
+{
+	shared_ptr<MeshRenderer> meshRenderer = GetMeshRenderer();
+	if (meshRenderer == nullptr)
+		return false;
+
+	shared_ptr<Mesh> mesh = meshRenderer->GetMesh();
+	if (mesh == nullptr || mesh->GetBoundsRadius() <= 0.f)
+		return false;
+
+	shared_ptr<Transform> transform = GetTransform();
+	if (transform == nullptr)
+		return false;
+
+	outCenter = Vec3::Transform(mesh->GetBoundsCenter(), transform->GetLocalToWorldMatrix());
+	outRadius = mesh->GetBoundsRadius() * transform->GetMaxWorldScale();
+
+	// 스키닝 메시의 바운즈는 바인드 포즈 기준이다. 애니메이션이 그 밖으로
+	// 나가면 정작 움직이는 물체가 화면 끝에서 사라진다. 여유를 준다.
+	if (GetAnimator() != nullptr)
+		outRadius *= 1.5f;
+
+	return true;
 }
 
 void GameObject::AddComponent(shared_ptr<Component> component)

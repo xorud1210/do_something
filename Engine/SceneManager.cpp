@@ -240,7 +240,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		obj->GetTransform()->SetLocalScale(Vec3(4000.f, 20.f, 4000.f));
 		obj->GetTransform()->SetLocalPosition(Vec3(90.f, -95.f, 340.f));
 		obj->SetStatic(true);
-		obj->SetCheckFrustum(false);
+		obj->SetCheckFrustum(true);
 
 		shared_ptr<MeshRenderer> meshRenderer = make_shared<MeshRenderer>();
 		meshRenderer->SetMesh(GET_SINGLE(Resources)->LoadCubeMesh());
@@ -470,7 +470,10 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		for (auto& gameObject : gameObjects)
 		{
 			gameObject->SetName(L"Dragon");
-			gameObject->SetCheckFrustum(false);
+			// 바운딩 구를 메시 정점에서 재게 된 뒤로 절두체 컬링을 켤 수 있다.
+			// 예전에는 트랜스폼의 로컬 스케일을 반지름으로 썼기 때문에
+			// 켜는 순간 화면 가장자리에서 사라졌다.
+			gameObject->SetCheckFrustum(true);
 			gameObject->GetTransform()->SetLocalPosition(Vec3(0.f, 0.f, 300.f));
 			gameObject->GetTransform()->SetLocalScale(Vec3(1.f, 1.f, 1.f));
 			scene->AddGameObject(gameObject);
@@ -509,7 +512,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		for (auto& part : parts)
 		{
 			part->SetName(L"PlayerPart");
-			part->SetCheckFrustum(false);
+			part->SetCheckFrustum(true);
 			part->SetStatic(false);
 			part->GetTransform()->SetParent(playerTransform);
 

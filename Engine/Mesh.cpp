@@ -21,6 +21,43 @@ void Mesh::Create(const vector<Vertex>& vertexBuffer, const vector<uint32>& inde
 {
 	CreateVertexBuffer(vertexBuffer);
 	CreateIndexBuffer(indexBuffer);
+	CreateBounds(vertexBuffer);
+}
+
+// 로컬 공간 바운딩 구.
+//
+// AABB 의 중심을 잡고 거기서 가장 먼 정점까지를 반지름으로 한다.
+// 최소 구는 아니지만 한 번만 돌면 되고, 컬링에서 너무 크게 잡는 것은
+// 안전한 방향의 오차다(안 보이는 걸 그릴 뿐, 보이는 걸 지우지 않는다).
+void Mesh::CreateBounds(const vector<Vertex>& buffer)
+{
+	if (buffer.empty())
+	{
+		_boundsCenter = Vec3(0.f, 0.f, 0.f);
+		_boundsRadius = 0.f;
+		return;
+	}
+
+	Vec3 minPos = buffer[0].pos;
+	Vec3 maxPos = buffer[0].pos;
+
+	for (const Vertex& v : buffer)
+	{
+		minPos = Vec3::Min(minPos, v.pos);
+		maxPos = Vec3::Max(maxPos, v.pos);
+	}
+
+	_boundsCenter = (minPos + maxPos) * 0.5f;
+
+	float radiusSq = 0.f;
+	for (const Vertex& v : buffer)
+	{
+		const float d = (v.pos - _boundsCenter).LengthSquared();
+		if (d > radiusSq)
+			radiusSq = d;
+	}
+
+	_boundsRadius = ::sqrtf(radiusSq);
 }
 
 void Mesh::Render(uint32 instanceCount, uint32 idx)

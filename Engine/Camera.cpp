@@ -59,11 +59,15 @@ void Camera::SortGameObject()
 
 		if (gameObject->GetCheckFrustum())
 		{
-			if (_frustum.ContainsSphere(
-				gameObject->GetTransform()->GetWorldPosition(),
-				gameObject->GetTransform()->GetBoundingSphereRadius()) == false)
+			Vec3 center;
+			float radius = 0.f;
+
+			// 바운즈를 못 구하면(메시 없음) 자르지 않는다.
+			// 모르는 것을 지우는 것보다 그리는 편이 낫다.
+			if (gameObject->GetWorldBoundingSphere(center, radius))
 			{
-				continue;
+				if (_frustum.ContainsSphere(center, radius) == false)
+					continue;
 			}
 		}
 
@@ -128,11 +132,15 @@ void Camera::SortShadowObject()
 
 		if (gameObject->GetCheckFrustum())
 		{
-			if (_frustum.ContainsSphere(
-				gameObject->GetTransform()->GetWorldPosition(),
-				gameObject->GetTransform()->GetBoundingSphereRadius()) == false)
+			Vec3 center;
+			float radius = 0.f;
+
+			// 바운즈를 못 구하면(메시 없음) 자르지 않는다.
+			// 모르는 것을 지우는 것보다 그리는 편이 낫다.
+			if (gameObject->GetWorldBoundingSphere(center, radius))
 			{
-				continue;
+				if (_frustum.ContainsSphere(center, radius) == false)
+					continue;
 			}
 		}
 
