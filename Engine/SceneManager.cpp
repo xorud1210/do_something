@@ -21,6 +21,8 @@
 #include "PlayerController.h"
 #include "FollowCamera.h"
 
+#include <random>
+
 
 void SceneManager::Update()
 {
@@ -213,45 +215,32 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 #pragma endregion
 
 #pragma region Terrain
-	/*{
-		shared_ptr<GameObject> obj = make_shared<GameObject>();
-		obj->AddComponent(make_shared<Transform>());
-		obj->AddComponent(make_shared<Terrain>());
-		obj->AddComponent(make_shared<MeshRenderer>());
-
-		obj->GetTransform()->SetLocalScale(Vec3(50.f, 250.f, 50.f));
-		obj->GetTransform()->SetLocalPosition(Vec3(-100.f, -200.f, 300.f));
-		obj->SetStatic(true);
-		obj->GetTerrain()->Init(64, 64);
-		obj->SetCheckFrustum(false);
-
-		scene->AddGameObject(obj);
-	}*/
-#pragma endregion
-
-#pragma region Ground
-	// 바닥. 캐릭터가 허공에 떠 있어서 파티클이 무엇과 만나는지도 보이지 않았다.
-	// 소프트 파티클은 "뒤에 있는 물체"와의 깊이 차로 페이드하는 거라
-	// 애초에 뚫고 들어갈 면이 없으면 확인할 수가 없다.
+	// 바닥. 예전에는 4000 유닛짜리 큐브 한 개였다.
+	// 졸업작품의 하이트맵을 가져와 기복이 있는 지형으로 바꿨다.
+	//
+	// 이 아래의 초목·화톳불·나무·바위는 전부 이 지형 표면 높이에 맞춰 놓는다.
+	// 그래서 terrain 을 먼저 만들고 포인터를 들고 있는다.
+	shared_ptr<Terrain> terrain;
 	{
 		shared_ptr<GameObject> obj = make_shared<GameObject>();
-		obj->SetName(L"Ground");
+		obj->SetName(L"Terrain");
 		obj->AddComponent(make_shared<Transform>());
-		obj->GetTransform()->SetLocalScale(Vec3(4000.f, 20.f, 4000.f));
-		obj->GetTransform()->SetLocalPosition(Vec3(90.f, -95.f, 340.f));
+		obj->AddComponent(make_shared<MeshRenderer>());
+		obj->AddComponent(make_shared<Terrain>());
 		obj->SetStatic(true);
-		obj->SetCheckFrustum(true);
 
-		shared_ptr<MeshRenderer> meshRenderer = make_shared<MeshRenderer>();
-		meshRenderer->SetMesh(GET_SINGLE(Resources)->LoadCubeMesh());
-		{
-			// 4000 유닛짜리 면에 텍스처를 한 장만 깔면 가죽 무늬의 얼룩이
-			// 거대한 흰 반점으로 늘어난다. 잘게 반복시킨다.
-			shared_ptr<Material> material = GET_SINGLE(Resources)->Get<Material>(L"GameObject")->Clone();
-			material->SetVec2(0, Vec2(24.f, 24.f));
-			meshRenderer->SetMaterial(material);
-		}
-		obj->AddComponent(meshRenderer);
+		// 지형은 한 오브젝트가 6000 유닛을 덮는다. 트랜스폼 하나로 잘라낼 수
+		// 없으므로 절두체 컬링에서 뺀다 (초목 묶음과 같은 이유).
+		obj->SetCheckFrustum(false);
+
+		TerrainDesc desc;
+		desc.worldSize = 6000.f;
+		desc.heightScale = 320.f;
+		desc.center = Vec3(90.f, -95.f, 340.f);
+		desc.detailTiling = 26.f;
+
+		terrain = obj->GetTerrain();
+		terrain->Init(desc);
 
 		scene->AddGameObject(obj);
 	}
@@ -272,6 +261,8 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		desc.count = 30000;
 		desc.center = Vec3(90.f, 0.f, 340.f);
 		desc.area = Vec2(2600.f, 2600.f);
+		// 지면이 평평하지 않으므로 밑동 높이를 지형에 묻는다.
+		desc.heightAt = [terrain](float x, float z) { return terrain->GetHeight(x, z); };
 		desc.groundY = -85.f;			// 바닥 윗면
 		desc.minScale = 20.f;
 		desc.maxScale = 42.f;
@@ -294,6 +285,142 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 	}
 #pragma endregion
 
+#pragma region Props
+	// 나무와 바위. 졸업작품이 쓰던 .bin 모델을 그대로 읽는다.
+	//
+	// 한 그루가 GameObject 여러 개(줄기 / 가지)로 들어오므로, 심을 때마다
+	// Instantiate 를 다시 부르지 않고 프리팹처럼 한 번 읽어 여러 번 찍는다.
+	{
+		struct PropDesc
+		{
+			const wchar_t*	path;
+			uint32			count;
+			float			minScale;
+			float			maxScale;
+			bool			alignToGround;	// 경사에 맞춰 기울일 것인가
+
+			// 알파 테스트를 걸 재질을 텍스처 이름의 일부로 지정한다. 비어 있으면 안 건다.
+			//
+			// 나무 한 그루에 재질이 둘이다 - 잎과 기둥. 둘 다에 걸면 기둥이 통째로
+			// 사라진다. 기둥 텍스처의 알파 채널에는 불투명도가 아니라 다른 값이
+			// 들어 있어서(Tree_Bark 는 최대 58/255, Birch_Bark 는 48/255)
+			// 어떤 임계값을 잡아도 전부 잘려 나간다.
+			// 임계값을 아주 작게 낮추는 대신, 기둥에는 아예 걸지 않는다.
+			const wchar_t*	alphaTestMatch;
+		};
+
+		const PropDesc props[] =
+		{
+			// 모델 실측 높이: 소나무 27.8 / 자작나무 22.0 / 바위 0.6~1.9 유닛.
+			// 플레이어가 1.85 x 100 = 185 유닛이라 나무는 그 2~3배로 잡았다.
+			{ L"..\\Resources\\Model\\FAE_Pine_A_LOD0.bin", 70, 16.0f, 28.0f, false, L"Branch" },
+			{ L"..\\Resources\\Model\\FAE_Birch_A_LOD0.bin", 55, 17.0f, 30.0f, false, L"Branch" },
+			{ L"..\\Resources\\Model\\RockCluster_B_LOD0.bin", 26, 25.0f, 70.0f, true , nullptr },
+			{ L"..\\Resources\\Model\\RockCluster_C_LOD0.bin", 20, 25.0f, 60.0f, true , nullptr },
+			{ L"..\\Resources\\Model\\RockCluster_D.bin", 16, 20.0f, 50.0f, true , nullptr },
+		};
+
+		std::mt19937 rng(20260906);
+		std::uniform_real_distribution<float> unit(0.f, 1.f);
+
+		// 화톳불과 플레이어 자리는 비워 둔다.
+		const Vec2 clearings[] = { Vec2(250.f, 460.f), Vec2(90.f, 340.f) };
+		const float clearRadius = 200.f;
+
+		for (const PropDesc& prop : props)
+		{
+			shared_ptr<MeshData> meshData = GET_SINGLE(Resources)->LoadBin(prop.path);
+			if (meshData == nullptr)
+				continue;
+
+			// 잎은 알파로 잘라내야 한다. .bin 은 그 사실을 담고 있지 않으므로
+			// 심는 쪽에서 정해 준다. 머티리얼은 인스턴스끼리 공유하므로 한 번만 하면 된다.
+			if (prop.alphaTestMatch != nullptr)
+			{
+				vector<shared_ptr<GameObject>> probe = meshData->Instantiate();
+				shared_ptr<Shader> alphaShader =
+					GET_SINGLE(Resources)->Get<Shader>(L"DeferredAlphaTest");
+				const wstring match = prop.alphaTestMatch;
+
+				for (auto& part : probe)
+				{
+					shared_ptr<MeshRenderer> mr = part->GetMeshRenderer();
+					for (uint32 m = 0; m < mr->GetMaterialCount(); m++)
+					{
+						shared_ptr<Material> mat = mr->GetMaterial(m);
+						if (mat == nullptr)
+							continue;
+
+						// 디퓨즈 텍스처의 이름으로 잎인지 기둥인지 가른다.
+						shared_ptr<Texture> diffuse = mat->GetTexture(0);
+						if (diffuse == nullptr)
+							continue;
+						if (diffuse->GetName().find(match) == wstring::npos)
+							continue;
+
+						mat->SetShader(alphaShader);
+					}
+				}
+			}
+
+			uint32 placed = 0;
+			for (uint32 attempt = 0; attempt < prop.count * 8 && placed < prop.count; attempt++)
+			{
+				const float x = 90.f + (unit(rng) * 2.f - 1.f) * 2100.f;
+				const float z = 340.f + (unit(rng) * 2.f - 1.f) * 2100.f;
+
+				bool blocked = false;
+				for (const Vec2& spot : clearings)
+				{
+					const float dx = x - spot.x;
+					const float dz = z - spot.y;
+					if (dx * dx + dz * dz < clearRadius * clearRadius)
+						blocked = true;
+				}
+				if (blocked)
+					continue;
+
+				// 너무 가파른 곳에는 나무를 세우지 않는다. 바위는 괜찮다.
+				const Vec3 groundNormal = terrain->GetNormal(x, z);
+				if (prop.alignToGround == false && groundNormal.y < 0.86f)
+					continue;
+
+				const float y = terrain->GetHeight(x, z);
+				const float scale = prop.minScale + (prop.maxScale - prop.minScale) * unit(rng);
+
+				vector<shared_ptr<GameObject>> parts = meshData->Instantiate();
+				for (auto& part : parts)
+				{
+					part->SetName(L"Prop");
+					part->SetStatic(true);
+					part->SetCheckFrustum(true);
+
+					shared_ptr<Transform> transform = part->GetTransform();
+					transform->SetLocalScale(Vec3(scale, scale, scale));
+					transform->SetLocalPosition(Vec3(x, y, z));
+
+					// 같은 모델을 여러 번 심으므로 Y 회전을 흩뿌려 반복을 감춘다.
+					float pitch = 0.f;
+					float roll = 0.f;
+					if (prop.alignToGround)
+					{
+						// 바위는 지면 기울기를 따라 눕힌다. 나무는 세워 둔다.
+						pitch = ::atan2f(groundNormal.z, groundNormal.y);
+						roll = -::atan2f(groundNormal.x, groundNormal.y);
+					}
+					transform->SetLocalRotation(Vec3(pitch, unit(rng) * XM_2PI, roll));
+
+					scene->AddGameObject(part);
+				}
+
+				placed++;
+			}
+
+
+		}
+	}
+#pragma endregion
+
 #pragma region Particle
 	// 화톳불. 지금까지 블룸이 물 수 있는 건 밝게 조명받은 표면뿐이었다.
 	// 화면 안에 실제로 빛나는 것을 두면 그때부터 "빛 번짐"이 된다.
@@ -301,7 +428,8 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		shared_ptr<GameObject> obj = make_shared<GameObject>();
 		obj->SetName(L"Campfire");
 		obj->AddComponent(make_shared<Transform>());
-		obj->GetTransform()->SetLocalPosition(Vec3(250.f, -85.f, 460.f));
+		obj->GetTransform()->SetLocalPosition(
+			Vec3(250.f, terrain->GetHeight(250.f, 460.f), 460.f));
 		obj->SetCheckFrustum(false);
 
 		ParticleDesc desc;
@@ -474,7 +602,8 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 			// 예전에는 트랜스폼의 로컬 스케일을 반지름으로 썼기 때문에
 			// 켜는 순간 화면 가장자리에서 사라졌다.
 			gameObject->SetCheckFrustum(true);
-			gameObject->GetTransform()->SetLocalPosition(Vec3(0.f, 0.f, 300.f));
+			gameObject->GetTransform()->SetLocalPosition(
+				Vec3(0.f, terrain->GetHeight(0.f, 300.f), 300.f));
 			gameObject->GetTransform()->SetLocalScale(Vec3(1.f, 1.f, 1.f));
 			scene->AddGameObject(gameObject);
 		}
@@ -499,7 +628,8 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		player->SetStatic(false);
 
 		shared_ptr<Transform> playerTransform = player->GetTransform();
-		playerTransform->SetLocalPosition(Vec3(90.f, -85.f, 340.f));
+		playerTransform->SetLocalPosition(
+			Vec3(90.f, terrain->GetHeight(90.f, 340.f), 340.f));
 		playerTransform->SetLocalScale(Vec3(scale, scale, scale));
 		// The model faces +Z, so without this we only ever see its back.
 		playerTransform->SetLocalRotation(Vec3(0.f, XM_PI, 0.f));
@@ -508,6 +638,14 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		controller->SetFacing(XM_PI);
 		// Root translation is in world units; the 100x scale does not apply to it.
 		controller->SetMoveSpeed(250.f);
+		controller->SetGroundQuery([terrain](float x, float z) { return terrain->GetHeight(x, z); });
+
+		// 지형 가장자리 안쪽으로만 다닌다. 밖에는 설 곳이 없다.
+		{
+			const TerrainDesc& td = terrain->GetDesc();
+			const float half = td.worldSize * 0.5f - 200.f;
+			controller->SetMoveBounds(Vec2(td.center.x, td.center.z), Vec2(half, half));
+		}
 
 		for (auto& part : parts)
 		{

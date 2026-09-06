@@ -329,6 +329,7 @@ shared_ptr<Texture> Resources::LoadTexture(const wstring& path, bool srgb)
 
 	shared_ptr<Texture> texture = make_shared<Texture>();
 	texture->Load(path, srgb);
+	texture->SetName(key);
 	keyObjMap[key] = texture;
 
 	return texture;
@@ -619,28 +620,44 @@ void Resources::CreateDefaultShader()
 		Add<Shader>(L"Tessellation", shader);
 	}
 
+	// DeferredAlphaTest
+	// 나뭇잎 카드처럼 알파로 잘라내는 물체용. 디퓨즈 셰이더와 정점 단계는 같고
+	// 픽셀 셰이더만 다르다. 잎은 한 겹짜리라 양면으로 그린다.
+	{
+		ShaderInfo info =
+		{
+			SHADER_TYPE::DEFERRED,
+			RASTERIZER_TYPE::CULL_NONE,
+			DEPTH_STENCIL_TYPE::LESS,
+		};
+
+		ShaderArg arg =
+		{
+			"VS_Main",
+			"",
+			"",
+			"",
+			"PS_AlphaTest"
+		};
+
+		shared_ptr<Shader> shader = make_shared<Shader>();
+		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\deferred.fx", info, arg);
+		Add<Shader>(L"DeferredAlphaTest", shader);
+	}
+
 	// Terrain
+	// 예전에는 테셀레이션 패치였다. 지금은 CPU 에서 격자를 만들어 두므로
+	// 보통 삼각형 목록이고, 그래서 다른 디퍼드 오브젝트와 완전히 같은 경로를 탄다.
 	{
 		ShaderInfo info =
 		{
 			SHADER_TYPE::DEFERRED,
 			RASTERIZER_TYPE::CULL_BACK,
 			DEPTH_STENCIL_TYPE::LESS,
-			BLEND_TYPE::DEFAULT,
-			D3D_PRIMITIVE_TOPOLOGY_3_CONTROL_POINT_PATCHLIST
-		};
-
-		ShaderArg arg =
-		{
-			"VS_Main",
-			"HS_Main",
-			"DS_Main",
-			"",
-			"PS_Main",
 		};
 
 		shared_ptr<Shader> shader = make_shared<Shader>();
-		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\terrain.fx", info, arg);
+		shader->CreateGraphicsShader(L"..\\Resources\\Shader\\terrain.fx", info);
 		Add<Shader>(L"Terrain", shader);
 	}
 
@@ -936,12 +953,12 @@ void Resources::CreateDefaultMaterial()
 	}
 
 	// Terrain
+	// 텍스처는 Terrain 컴포넌트가 채운다. 여기서는 셰이더만 걸어 둔 원본이고,
+	// 실제로 쓰는 것은 그 복제본이다.
 	{
 		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"Terrain");
-		shared_ptr<Texture> texture = GET_SINGLE(Resources)->LoadTexture(L"..\\Resources\\Texture\\Terrain\\terrain.png", true);
 		shared_ptr<Material> material = make_shared<Material>();
 		material->SetShader(shader);
-		material->SetTexture(0, texture);
 		Add<Material>(L"Terrain", material);
 	}
 }

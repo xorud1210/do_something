@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "Component.h"
 
+#include <functional>
+
 class Material;
 class Mesh;
 class StructuredBuffer;
@@ -26,6 +28,11 @@ struct BillboardDesc
 	Vec3	center = Vec3(0.f, 0.f, 0.f);
 	Vec2	area = Vec2(2000.f, 2000.f);
 	float	groundY = 0.f;
+
+	// 지면이 평평하지 않으면 이걸로 높이를 묻는다. 비어 있으면 groundY 를 쓴다.
+	// 지형에 직접 의존하지 않으려고 함수로 받는다 - 심는 쪽이 무엇 위에
+	// 심는지를 정하고, 빌보드는 높이만 알면 된다.
+	function<float(float, float)>	heightAt;
 
 	float	minScale = 40.f;
 	float	maxScale = 80.f;

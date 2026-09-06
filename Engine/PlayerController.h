@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include "MonoBehaviour.h"
 
+#include <functional>
+
 class GameObject;
 class Animator;
 
@@ -30,6 +32,18 @@ public:
 	void AddPart(shared_ptr<GameObject> part);
 
 	void SetMoveSpeed(float speed) { _moveSpeed = speed; }
+
+	// 지면 높이를 묻는 함수. 비어 있으면 y 를 건드리지 않는다.
+	// Terrain 을 직접 들고 있지 않는 이유는, 이 컨트롤러가 지형 없는
+	// 씬에서도 그대로 돌아야 하기 때문이다.
+	void SetGroundQuery(function<float(float, float)> query) { _groundAt = query; }
+
+	// 걸어 다닐 수 있는 XZ 범위. 지형 밖으로 나가면 설 곳이 없다.
+	void SetMoveBounds(const Vec2& center, const Vec2& halfSize)
+	{
+		_boundsCenter = center;
+		_boundsHalf = halfSize;
+	}
 	void SetFacing(float yawRadian) { _yaw = yawRadian; }
 
 private:
@@ -49,6 +63,9 @@ private:
 	vector<weak_ptr<GameObject>>	_parts;
 
 	float	_moveSpeed = 250.f;
+	function<float(float, float)>	_groundAt;
+	Vec2	_boundsCenter = Vec2(0.f, 0.f);
+	Vec2	_boundsHalf = Vec2(0.f, 0.f);	// 0 이면 제한 없음
 	float	_turnSpeed = 10.f;		// 이동 방향으로 돌아가는 속도 (rad/s 계수)
 	float	_yaw = 0.f;				// 현재 바라보는 방향
 

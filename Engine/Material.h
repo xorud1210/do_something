@@ -51,6 +51,11 @@ public:
 	void SetShader(shared_ptr<Shader> shader) { _shader = shader; }
 	void SetInt(uint8 index, int32 value) { _params.SetInt(index, value); }
 	void SetFloat(uint8 index, float value) { _params.SetFloat(index, value); }
+	shared_ptr<Texture> GetTexture(uint8 index) const
+	{
+		return MaterialParams::InRange(index) ? _textures[index] : nullptr;
+	}
+
 	void SetTexture(uint8 index, shared_ptr<Texture> texture)
 	{
 		if (MaterialParams::InRange(index) == false)

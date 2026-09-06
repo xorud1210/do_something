@@ -172,6 +172,25 @@ void PlayerController::LateUpdate()
 	// 그냥 걸을 때는 몸이 이동 방향으로 돌아가므로 앞으로 가는 클립 하나면 충분하다.
 	const bool facingLocked = INPUT->GetButton(KEY_TYPE::Q);
 
+	// 걸어 다닐 범위를 벗어나지 않게 하고, 지면에 붙인다.
+	// 이동 여부와 상관없이 매 프레임 한다 - 처음 놓인 자리가 틀려도
+	// 첫 프레임에 제자리를 찾는다.
+	if (_groundAt || _boundsHalf.x > 0.f)
+	{
+		Vec3 pos = transform->GetLocalPosition();
+
+		if (_boundsHalf.x > 0.f && _boundsHalf.y > 0.f)
+		{
+			pos.x = std::clamp(pos.x, _boundsCenter.x - _boundsHalf.x, _boundsCenter.x + _boundsHalf.x);
+			pos.z = std::clamp(pos.z, _boundsCenter.y - _boundsHalf.y, _boundsCenter.y + _boundsHalf.y);
+		}
+
+		if (_groundAt)
+			pos.y = _groundAt(pos.x, pos.z);
+
+		transform->SetLocalPosition(pos);
+	}
+
 	// --- 공격: 상체 레이어 ---
 	// 하체는 그대로 달리거나 서 있고, 상체만 공격 모션을 덮어쓴다.
 	// 마스크가 spine_01 이하에만 걸려 있어서 "달리면서 공격"이 나온다.

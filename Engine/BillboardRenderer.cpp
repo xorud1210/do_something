@@ -67,7 +67,8 @@ void BillboardRenderer::SetDesc(const BillboardDesc& desc)
 		}
 
 		BillboardInstance instance = {};
-		instance.worldPos = Vec3(x, _desc.groundY, z);
+		const float y = _desc.heightAt ? _desc.heightAt(x, z) : _desc.groundY;
+		instance.worldPos = Vec3(x, y, z);
 		instance.scale = _desc.minScale + (_desc.maxScale - _desc.minScale) * unit(rng);
 		instance.phase = unit(rng) * 6.2831853f;
 		instances.push_back(instance);

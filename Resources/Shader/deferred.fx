@@ -100,4 +100,39 @@ PS_OUT PS_Main(VS_OUT input)
     return output;
 }
 
+// 알파로 잘라내는 물체용. 나뭇잎 카드처럼 "있거나 없거나" 인 표면이다.
+//
+// 디퍼드는 픽셀 하나에 표면 하나만 담으므로 반투명은 못 담지만,
+// clip 으로 버리고 나면 남은 픽셀은 완전 불투명이라 G-Buffer 에 그대로 쓸 수 있다.
+// 13 의 초목 빌보드와 같은 선택이다.
+PS_OUT PS_AlphaTest(VS_OUT input)
+{
+    float2 uv = input.uv * ((g_vec2_0.x > 0.f) ? g_vec2_0 : float2(1.f, 1.f));
+
+    float4 color = g_tex_0.Sample(g_sam_0, uv);
+    clip(color.a - 0.35f);
+
+    PS_OUT output = (PS_OUT) 0;
+
+    float3 viewNormal = input.viewNormal;
+    if (g_tex_on_1 == 1)
+    {
+        float3 tangentSpaceNormal = g_tex_1.Sample(g_sam_0, uv).xyz;
+        tangentSpaceNormal = (tangentSpaceNormal - 0.5f) * 2.f;
+        float3x3 matTBN = { input.viewTangent, input.viewBinormal, input.viewNormal };
+        viewNormal = normalize(mul(tangentSpaceNormal, matTBN));
+    }
+
+    // 잎은 얇아서 양면으로 그린다. 뒷면에서 보면 법선이 반대라 검게 죽으므로
+    // 카메라 쪽으로 돌려 세운다.
+    if (viewNormal.z > 0.f)
+        viewNormal = -viewNormal;
+
+    output.position = float4(input.viewPos.xyz, 0.f);
+    output.normal = float4(viewNormal.xyz, 0.f);
+    output.color = float4(color.rgb, 1.f);
+
+    return output;
+}
+
 #endif
