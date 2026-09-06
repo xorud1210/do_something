@@ -194,6 +194,12 @@ void BillboardRenderer::CullOnGPU()
 	ID3D12Resource* args = _argsBuffer->GetBuffer().Get();
 	constexpr uint64 argsSize = sizeof(D3D12_DRAW_INDEXED_ARGUMENTS);
 
+	// 되읽기 버퍼에는 '직전 프레임' 의 결과가 들어 있다.
+	// 컴퓨트가 더 이상 여기서 CPU 를 기다리지 않으므로, 이번 프레임 값을 보려면
+	// 다시 GPU 를 세워야 한다. 화면에 띄우는 진단값이라 한 프레임 늦어도 된다.
+	if (_readback)
+		_visibleCount = _readback[1];
+
 	// 1) InstanceCount 를 0 으로.
 	{
 		D3D12_RESOURCE_BARRIER toCopy = CD3DX12_RESOURCE_BARRIER::Transition(args,
@@ -232,10 +238,7 @@ void BillboardRenderer::CullOnGPU()
 		(_instanceCount + FOLIAGE_CULL_GROUP_SIZE - 1) / FOLIAGE_CULL_GROUP_SIZE;
 	COMPUTE_CMD_LIST->Dispatch(groupCount, 1, 1);
 
-	// 3) 통과 개수를 CPU 로 되읽는다.
-	//    Material::Dispatch 를 쓰지 않고 직접 기록하는 이유가 이것이다.
-	//    바로 아래에서 컴퓨트 큐를 통째로 비우므로, 이 복사를 같은 커맨드 리스트에
-	//    실어 두면 한 프레임 늦지 않고 이번 프레임 값이 그대로 온다.
+	// 3) 통과 개수를 되읽기 버퍼로 복사해 둔다. 읽는 것은 다음 프레임이다.
 	{
 		D3D12_RESOURCE_BARRIER toSrc = CD3DX12_RESOURCE_BARRIER::Transition(args,
 			D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
@@ -247,11 +250,6 @@ void BillboardRenderer::CullOnGPU()
 			D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COMMON);
 		COMPUTE_CMD_LIST->ResourceBarrier(1, &toCommon);
 	}
-
-	GEngine->GetComputeCmdQueue()->FlushComputeCommandQueue();
-
-	if (_readback)
-		_visibleCount = _readback[1];
 }
 
 void BillboardRenderer::RenderShadow(uint32 cascade)

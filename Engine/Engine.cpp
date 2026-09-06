@@ -24,7 +24,9 @@ void Engine::Init(const WindowInfo& info)
 	_swapChain->Init(info, _device->GetDevice(), _device->GetDXGI(), _graphicsCmdQueue->GetCmdQueue());
 	_rootSignature->Init();
 	_graphicsDescHeap->Init(256);
-	_computeDescHeap->Init();
+	// 한 프레임에 쌓이는 디스패치 수만큼 그룹이 필요하다.
+	// (애니메이터 오브젝트마다 하나 + 파티클 이미터마다 하나 + 초목 묶음마다 하나)
+	_computeDescHeap->Init(64);
 
 	CreateConstantBuffer(CBV_REGISTER::b0, sizeof(LightParams), 1);
 	CreateConstantBuffer(CBV_REGISTER::b1, sizeof(TransformParams), 256);
@@ -52,6 +54,14 @@ void Engine::Update()
 		BillboardRenderer::SetShadowEnabled(BillboardRenderer::IsShadowEnabled() == false);
 
 	GET_SINGLE(Timer)->Update();
+
+	// 프레임 머리에서 한 번만 되감는다.
+	// 상수 버퍼는 그래픽스와 컴퓨트가 같이 쓰는데, 컴퓨트 디스패치 일부는
+	// 아래 SceneManager::Update 안에서 기록되므로 RenderBegin 은 이미 늦다.
+	GetConstantBuffer(CONSTANT_BUFFER_TYPE::TRANSFORM)->Clear();
+	GetConstantBuffer(CONSTANT_BUFFER_TYPE::MATERIAL)->Clear();
+	_computeCmdQueue->Begin();
+
 	GET_SINGLE(SceneManager)->Update();
 	GET_SINGLE(InstancingManager)->ClearBuffer();
 
@@ -76,6 +86,10 @@ void Engine::RenderBegin()
 
 void Engine::RenderEnd()
 {
+	// 이번 프레임에 쌓인 컴퓨트 명령을 먼저 제출한다.
+	// 그래픽스 큐가 이 펜스를 기다리므로 순서는 보장되고, CPU 는 서지 않는다.
+	_computeCmdQueue->Submit();
+
 	_graphicsCmdQueue->RenderEnd();
 }
 

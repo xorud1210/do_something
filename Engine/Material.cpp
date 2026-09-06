@@ -58,9 +58,11 @@ void Material::Dispatch(uint32 x, uint32 y, uint32 z)
 	// SetDescriptorHeaps + SetComputeRootDescriptorTable
 	GEngine->GetComputeDescHeap()->CommitTable();
 
+	// 여기서 큐를 비우지 않는다.
+	// 예전에는 디스패치마다 커맨드 큐를 통째로 제출하고 CPU 가 GPU 를 기다렸다.
+	// 지금은 이번 프레임의 컴퓨트 명령이 한 리스트에 쌓였다가 RenderEnd 에서
+	// 한 번에 나가고, 그래픽스 큐가 펜스로 기다린다.
 	COMPUTE_CMD_LIST->Dispatch(x, y, z);
-
-	GEngine->GetComputeCmdQueue()->FlushComputeCommandQueue();
 }
 
 shared_ptr<Material> Material::Clone()

@@ -125,25 +125,6 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 	SetLayerName(1, L"UI");
 #pragma endregion
 
-#pragma region ComputeShader
-	{
-		shared_ptr<Shader> shader = GET_SINGLE(Resources)->Get<Shader>(L"ComputeShader");
-
-		// UAV �� Texture ����
-		shared_ptr<Texture> texture = GET_SINGLE(Resources)->CreateTexture(L"UAVTexture",
-			DXGI_FORMAT_R8G8B8A8_UNORM, 1024, 1024,
-			CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT), D3D12_HEAP_FLAG_NONE,
-			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-		shared_ptr<Material> material = GET_SINGLE(Resources)->Get<Material>(L"ComputeShader");
-		material->SetShader(shader);
-		material->SetInt(0, 1);
-		GEngine->GetComputeDescHeap()->SetUAV(texture->GetUAVHandle(), UAV_REGISTER::u0);
-
-		// ������ �׷� (1 * 1024 * 1)
-		material->Dispatch(1, 1024, 1);
-	}
-#pragma endregion
 
 	shared_ptr<Scene> scene = make_shared<Scene>();
 

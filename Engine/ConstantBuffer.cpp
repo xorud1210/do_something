@@ -81,7 +81,14 @@ void ConstantBuffer::Clear()
 
 void ConstantBuffer::PushGraphicsData(void* buffer, uint32 size)
 {
-	assert(_currentIndex < _elementCount);
+	// 넘치면 매핑 버퍼 밖을 memcpy 하게 된다. Release 에서 assert 가 사라지면
+	// 조용한 힙 손상이 되므로 그냥 막는다. 그림이 틀리는 편이 낫다.
+	// (이 씬 측정치: 프레임당 TRANSFORM 60 칸 / MATERIAL 84 칸)
+	if (_currentIndex >= _elementCount)
+	{
+		assert(false);
+		return;
+	}
 	assert(_elementSize == ((size + 255) & ~255));
 
 	::memcpy(&_mappedBuffer[_currentIndex * _elementSize], buffer, size);
@@ -101,7 +108,14 @@ void ConstantBuffer::SetGraphicsGlobalData(void* buffer, uint32 size)
 
 void ConstantBuffer::PushComputeData(void* buffer, uint32 size)
 {
-	assert(_currentIndex < _elementCount);
+	// 넘치면 매핑 버퍼 밖을 memcpy 하게 된다. Release 에서 assert 가 사라지면
+	// 조용한 힙 손상이 되므로 그냥 막는다. 그림이 틀리는 편이 낫다.
+	// (이 씬 측정치: 프레임당 TRANSFORM 60 칸 / MATERIAL 84 칸)
+	if (_currentIndex >= _elementCount)
+	{
+		assert(false);
+		return;
+	}
 	assert(_elementSize == ((size + 255) & ~255));
 
 	::memcpy(&_mappedBuffer[_currentIndex * _elementSize], buffer, size);
