@@ -140,6 +140,7 @@ shared_ptr<Scene> SceneManager::LoadTestScene()
 		// TestCameraScript moves the camera with WASD, which fights the player for
 		// the same keys. A follow camera is attached after the player is created.
 		mainCamera = camera;
+		camera->GetCamera()->SetMain(true);
 		camera->GetCamera()->SetFar(10000.f);
 		camera->GetTransform()->SetLocalPosition(Vec3(0.f, 0.f, 0.f));
 		uint8 layerIndex = GET_SINGLE(SceneManager)->LayerNameToIndex(L"UI");

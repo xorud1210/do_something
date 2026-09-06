@@ -56,6 +56,15 @@ shared_ptr<Camera> Scene::GetMainCamera()
 	if (_cameras.empty())
 		return nullptr;
 
+	// 메인으로 표시된 카메라를 쓴다.
+	// 표시가 없으면 예전처럼 첫 번째를 쓰되, 그건 씬 코드가 카메라를 추가하는
+	// 순서에만 기대는 것이라 새 카메라를 붙일 때 조용히 바뀔 수 있다.
+	for (auto& camera : _cameras)
+	{
+		if (camera->IsMain())
+			return camera;
+	}
+
 	return _cameras[0];
 }
 
@@ -121,7 +130,7 @@ void Scene::RenderDeferred()
 	// Deferred OMSet
 	GEngine->GetRTGroup(RENDER_TARGET_GROUP_TYPE::G_BUFFER)->OMSetRenderTargets();
 
-	shared_ptr<Camera> mainCamera = _cameras[0];
+	shared_ptr<Camera> mainCamera = GetMainCamera();
 	mainCamera->SortGameObject();
 	mainCamera->Render_Deferred();
 
@@ -130,7 +139,7 @@ void Scene::RenderDeferred()
 
 void Scene::RenderLights()
 {
-	shared_ptr<Camera> mainCamera = _cameras[0];
+	shared_ptr<Camera> mainCamera = GetMainCamera();
 	Camera::S_MatView = mainCamera->GetViewMatrix();
 	Camera::S_MatProjection = mainCamera->GetProjectionMatrix();
 
@@ -160,7 +169,7 @@ void Scene::RenderForward()
 	// 스카이박스, 파티클, 포워드 오브젝트도 같은 HDR 타겟에 얹는다.
 	// 여기 있는 것들도 블룸과 톤매핑을 같이 받아야 한 화면처럼 보인다.
 	// RenderFinal 이 이미 이 그룹을 걸어놨으므로 다시 걸지 않는다(지우면 안 된다).
-	shared_ptr<Camera> mainCamera = _cameras[0];
+	shared_ptr<Camera> mainCamera = GetMainCamera();
 	mainCamera->Render_Forward();
 
 	GEngine->GetRTGroup(RENDER_TARGET_GROUP_TYPE::HDR)->WaitTargetToResource();
@@ -238,7 +247,7 @@ void Scene::RenderPostProcess()
 void Scene::RenderUI()
 {
 	// 백버퍼는 톤매핑 패스가 이미 걸어놨다.
-	shared_ptr<Camera> mainCamera = _cameras[0];
+	shared_ptr<Camera> mainCamera = GetMainCamera();
 
 	for (auto& camera : _cameras)
 	{

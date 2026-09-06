@@ -93,6 +93,9 @@ public:
 public:
 	void SetBones(const vector<BoneInfo>* bones) { _bones = bones; }
 	void SetAnimClip(const vector<AnimClipInfo>* animClips);
+
+	// 본 행렬을 계산한다(컴퓨트 디스패치). 오브젝트당 프레임에 한 번이면 된다.
+	// 결과를 그래픽스에 묶는 것은 PushBoneData 가 따로 한다.
 	void PushData();
 
 	// 이미 계산해 둔 본 행렬을 그래픽스 파이프라인에 다시 묶기만 한다.

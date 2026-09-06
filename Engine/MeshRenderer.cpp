@@ -27,6 +27,11 @@ void MeshRenderer::SetMaterial(shared_ptr<Material> material, uint32 idx)
 
 void MeshRenderer::Render()
 {
+	// 본 행렬 계산(컴퓨트 디스패치)은 오브젝트당 한 번이면 된다.
+	// 예전에는 이 호출이 아래 루프 안에 있어서 서브셋 수만큼 같은 계산을 반복했다.
+	if (GetAnimator())
+		GetAnimator()->PushData();
+
 	for (uint32 i = 0; i < _materials.size(); i++)
 	{
 		shared_ptr<Material>& material = _materials[i];
@@ -36,11 +41,13 @@ void MeshRenderer::Render()
 
 		GetTransform()->PushData();
 
-		if (GetAnimator())
-		{
-			GetAnimator()->PushData();
-			material->SetInt(1, 1);
-		}
+		// 그래픽스 디스크립터 그룹은 드로우마다 새로 잡히므로,
+		// 계산은 한 번이어도 t7 묶기는 서브셋마다 다시 해야 한다.
+		//
+		// 그리고 플래그는 끄는 것까지 해야 한다. 머티리얼이 애니메이션 오브젝트와
+		// 정적 오브젝트에 공유되면, 켜기만 하고 안 끄면 정적 쪽이 스키닝을 탄다.
+		const bool skinned = GetAnimator() ? GetAnimator()->PushBoneData() : false;
+		material->SetInt(1, skinned ? 1 : 0);
 
 		material->PushGraphicsData();
 		_mesh->Render(1, i);
@@ -49,6 +56,9 @@ void MeshRenderer::Render()
 
 void MeshRenderer::Render(shared_ptr<InstancingBuffer>& buffer)
 {
+	if (GetAnimator())
+		GetAnimator()->PushData();
+
 	for (uint32 i = 0; i < _materials.size(); i++)
 	{
 		shared_ptr<Material>& material = _materials[i];
@@ -58,11 +68,8 @@ void MeshRenderer::Render(shared_ptr<InstancingBuffer>& buffer)
 
 		buffer->PushData();
 
-		if (GetAnimator())
-		{
-			GetAnimator()->PushData();
-			material->SetInt(1, 1);
-		}
+		const bool skinned = GetAnimator() ? GetAnimator()->PushBoneData() : false;
+		material->SetInt(1, skinned ? 1 : 0);
 
 		material->PushGraphicsData();
 		_mesh->Render(buffer, i);

@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "InstancingManager.h"
 #include "InstancingBuffer.h"
 #include "GameObject.h"
@@ -26,7 +26,7 @@ void InstancingManager::Render(vector<shared_ptr<GameObject>>& gameObjects)
 		}
 		else
 		{
-			const uint64 instanceId = pair.first;
+			shared_ptr<InstancingBuffer> buffer = Take();
 
 			for (const shared_ptr<GameObject>& gameObject : vec)
 			{
@@ -35,28 +35,36 @@ void InstancingManager::Render(vector<shared_ptr<GameObject>>& gameObjects)
 				params.matWV = params.matWorld * Camera::S_MatView;
 				params.matWVP = params.matWorld * Camera::S_MatView * Camera::S_MatProjection;
 
-				AddParam(instanceId, params);
+				buffer->AddData(params);
 			}
 
-			shared_ptr<InstancingBuffer>& buffer = _buffers[instanceId];
 			vec[0]->GetMeshRenderer()->Render(buffer);
 		}
 	}
 }
 
-void InstancingManager::ClearBuffer()
+shared_ptr<InstancingBuffer> InstancingManager::Take()
 {
-	for (auto& pair : _buffers)
+	if (_used >= _pool.size())
 	{
-		shared_ptr<InstancingBuffer>& buffer = pair.second;
-		buffer->Clear();
+		shared_ptr<InstancingBuffer> buffer = make_shared<InstancingBuffer>();
+		buffer->Init();
+		_pool.push_back(buffer);
 	}
+
+	shared_ptr<InstancingBuffer> buffer = _pool[_used];
+	_used++;
+
+	buffer->Clear();
+	return buffer;
 }
 
-void InstancingManager::AddParam(uint64 instanceId, InstancingParams& data)
+void InstancingManager::ClearBuffer()
 {
-	if (_buffers.find(instanceId) == _buffers.end())
-		_buffers[instanceId] = make_shared<InstancingBuffer>();
-
-	_buffers[instanceId]->AddData(data);
+	// 되감기만 한다. 버퍼 자체는 Take 가 꺼낼 때 비운다.
+	//
+	// 이 되감기가 프레임 머리에 있어야 하는 이유는 GPU 때문이다.
+	// 버퍼는 UPLOAD 힙이라 CPU 가 직접 덮어쓰는데, 직전 프레임의 GPU 작업이
+	// 끝나 있어야 안전하다. 그 보장은 RenderEnd 의 WaitSync 하나뿐이다.
+	_used = 0;
 }

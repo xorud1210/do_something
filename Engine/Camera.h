@@ -34,6 +34,13 @@ public:
 			_cullingMask &= ~(1 << layer);
 	}
 
+	// 이 카메라가 씬의 메인인가.
+	// 예전에는 Scene 이 _cameras[0] 을 메인으로 봤는데, 그건 씬 코드가
+	// 카메라를 추가하는 순서에만 기대는 것이었다. UI 카메라를 먼저 추가하면
+	// 그게 메인이 된다.
+	void SetMain(bool value) { _isMain = value; }
+	bool IsMain() const { return _isMain; }
+
 	void SetCullingMaskAll() { SetCullingMask(UINT32_MAX); }
 	void SetCullingMask(uint32 mask) { _cullingMask = mask; }
 	bool IsCulled(uint8 layer) { return (_cullingMask & (1 << layer)) != 0; }
@@ -74,6 +81,7 @@ private:
 
 	Frustum _frustum;
 	uint32 _cullingMask = 0;
+	bool _isMain = false;
 
 private:
 	vector<shared_ptr<GameObject>>	_vecDeferred;

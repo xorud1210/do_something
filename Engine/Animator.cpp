@@ -543,6 +543,7 @@ void Animator::PushData()
 	const uint32 groupCount = (boneCount / 256) + 1;
 	_computeMaterial->Dispatch(groupCount, 1, 1);
 
-	// Graphics Shader
-	_boneFinalMatrix->PushGraphicsData(SRV_REGISTER::t7);
+	// 그래픽스 파이프라인에 묶는 것은 여기서 하지 않는다.
+	// 디스크립터 그룹은 드로우마다 새로 잡히므로 묶기는 드로우 직전에
+	// PushBoneData 로 해야 한다. 계산은 한 번, 묶기는 드로우마다다.
 }
