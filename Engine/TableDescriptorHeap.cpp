@@ -47,10 +47,20 @@ void GraphicsDescriptorHeap::SetSRV(D3D12_CPU_DESCRIPTOR_HANDLE srcHandle, SRV_R
 void GraphicsDescriptorHeap::CommitTable()
 {
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = _descHeap->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += _currentGroupIndex * _groupSize;
+	handle.ptr += SafeGroupIndex() * _groupSize;
 	GRAPHICS_CMD_LIST->SetGraphicsRootDescriptorTable(1, handle);
 
 	_currentGroupIndex++;
+}
+
+uint32 GraphicsDescriptorHeap::SafeGroupIndex()
+{
+	assert(_currentGroupIndex < _groupCount);
+
+	if (_currentGroupIndex < _groupCount)
+		return _currentGroupIndex;
+
+	return static_cast<uint32>(_groupCount) - 1;
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE GraphicsDescriptorHeap::GetCPUHandle(CBV_REGISTER reg)
@@ -67,7 +77,7 @@ D3D12_CPU_DESCRIPTOR_HANDLE GraphicsDescriptorHeap::GetCPUHandle(uint8 reg)
 {
 	assert(reg > 0);
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = _descHeap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += _currentGroupIndex * _groupSize;
+	handle.ptr += SafeGroupIndex() * _groupSize;
 	handle.ptr += (reg - 1) * _handleSize;
 	return handle;
 }
@@ -127,13 +137,11 @@ void ComputeDescriptorHeap::SetUAV(D3D12_CPU_DESCRIPTOR_HANDLE srcHandle, UAV_RE
 
 void ComputeDescriptorHeap::CommitTable()
 {
-	assert(_currentGroupIndex < _groupCount);
-
 	ID3D12DescriptorHeap* descHeap = _descHeap.Get();
 	COMPUTE_CMD_LIST->SetDescriptorHeaps(1, &descHeap);
 
 	D3D12_GPU_DESCRIPTOR_HANDLE handle = descHeap->GetGPUDescriptorHandleForHeapStart();
-	handle.ptr += _currentGroupIndex * _groupSize;
+	handle.ptr += SafeGroupIndex() * _groupSize;
 	COMPUTE_CMD_LIST->SetComputeRootDescriptorTable(0, handle);
 
 	_currentGroupIndex++;
@@ -157,7 +165,17 @@ D3D12_CPU_DESCRIPTOR_HANDLE ComputeDescriptorHeap::GetCPUHandle(UAV_REGISTER reg
 D3D12_CPU_DESCRIPTOR_HANDLE ComputeDescriptorHeap::GetCPUHandle(uint8 reg)
 {
 	D3D12_CPU_DESCRIPTOR_HANDLE handle = _descHeap->GetCPUDescriptorHandleForHeapStart();
-	handle.ptr += _currentGroupIndex * _groupSize;
+	handle.ptr += SafeGroupIndex() * _groupSize;
 	handle.ptr += reg * _handleSize;
 	return handle;
+}
+
+uint32 ComputeDescriptorHeap::SafeGroupIndex()
+{
+	assert(_currentGroupIndex < _groupCount);
+
+	if (_currentGroupIndex < _groupCount)
+		return _currentGroupIndex;
+
+	return static_cast<uint32>(_groupCount) - 1;
 }

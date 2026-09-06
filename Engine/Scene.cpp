@@ -254,11 +254,24 @@ void Scene::PushLightData()
 {
 	LightParams lightParams = {};
 
+	// lightParams 는 지역 변수다. lights[] 를 넘겨 쓰면 스택이 깨진다.
+	// 상수 버퍼 크기가 곧 상한이므로 배열 크기에서 직접 가져온다.
+	constexpr uint32 maxLightCount = static_cast<uint32>(_countof(lightParams.lights));
+
 	for (auto& light : _lights)
 	{
+		if (lightParams.lightCount >= maxLightCount)
+		{
+			// 못 담은 광원은 인덱스를 지워서 자기 볼륨도 그리지 않게 한다.
+			// 인덱스를 남겨두면 남의 자리를 읽는다.
+			assert(false);
+			light->SetLightIndex(-1);
+			continue;
+		}
+
 		const LightInfo& lightInfo = light->GetLightInfo();
 
-		light->SetLightIndex(lightParams.lightCount);
+		light->SetLightIndex(static_cast<int8>(lightParams.lightCount));
 
 		lightParams.lights[lightParams.lightCount] = lightInfo;
 		lightParams.lightCount++;

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include "Object.h"
 
 class Shader;
@@ -21,12 +21,16 @@ struct MaterialParams
 		}
 	}
 
-	void SetInt(uint8 index, int32 value) { intParams[index] = value; }
-	void SetFloat(uint8 index, float value) { floatParams[index] = value; }
-	void SetTexOn(uint8 index, int32 value) { texOnParams[index] = value; }
-	void SetVec2(uint8 index, Vec2 value) { vec2Params[index] = value; }
-	void SetVec4(uint8 index, Vec4 value) { vec4Params[index] = value; }
-	void SetMatrix(uint8 index, Matrix& value) { matrixParams[index] = value; }
+	// 배열들이 구조체 안에 나란히 붙어 있어서, 범위를 넘기면 옆 배열을 조용히
+	// 덮어쓴다. 크래시도 안 나고 그림만 틀리므로 여기서 막는다.
+	static bool InRange(uint8 index) { assert(index < MATERIAL_ARG_COUNT); return index < MATERIAL_ARG_COUNT; }
+
+	void SetInt(uint8 index, int32 value) { if (InRange(index)) intParams[index] = value; }
+	void SetFloat(uint8 index, float value) { if (InRange(index)) floatParams[index] = value; }
+	void SetTexOn(uint8 index, int32 value) { if (InRange(index)) texOnParams[index] = value; }
+	void SetVec2(uint8 index, Vec2 value) { if (InRange(index)) vec2Params[index] = value; }
+	void SetVec4(uint8 index, Vec4 value) { if (InRange(index)) vec4Params[index] = value; }
+	void SetMatrix(uint8 index, Matrix& value) { if (InRange(index)) matrixParams[index] = value; }
 
 	array<int32, MATERIAL_ARG_COUNT> intParams;
 	array<float, MATERIAL_ARG_COUNT> floatParams;
@@ -47,8 +51,11 @@ public:
 	void SetShader(shared_ptr<Shader> shader) { _shader = shader; }
 	void SetInt(uint8 index, int32 value) { _params.SetInt(index, value); }
 	void SetFloat(uint8 index, float value) { _params.SetFloat(index, value); }
-	void SetTexture(uint8 index, shared_ptr<Texture> texture) 
-	{ 
+	void SetTexture(uint8 index, shared_ptr<Texture> texture)
+	{
+		if (MaterialParams::InRange(index) == false)
+			return;
+
 		_textures[index] = texture;
 		_params.SetTexOn(index, (texture == nullptr ? 0 : 1));
 	}

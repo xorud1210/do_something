@@ -41,7 +41,11 @@ void Light::FinalUpdate()
 
 void Light::Render()
 {
+	// Scene::PushLightData 가 상수 버퍼에 못 담은 광원은 인덱스가 -1 이다.
+	// 그리면 셰이더가 g_light[-1] 을 읽는다.
 	assert(_lightIndex >= 0);
+	if (_lightIndex < 0)
+		return;
 
 	GetTransform()->PushData();
 

@@ -23,6 +23,11 @@ public:
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(uint8 reg);
 
+	// 그룹을 다 쓰면 힙 밖을 가리키게 된다. CopyDescriptors 는 힙 할당 밖을 쓰고,
+	// SetGraphicsRootDescriptorTable 은 힙 밖 GPU 핸들을 묶어 디바이스를 날린다.
+	// 마지막 그룹을 겹쳐 쓰면 그림은 틀리지만 살아서 원인을 볼 수 있다.
+	uint32 SafeGroupIndex();
+
 private:
 
 	ComPtr<ID3D12DescriptorHeap> _descHeap;
@@ -62,6 +67,9 @@ public:
 
 private:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(uint8 reg);
+
+	// 그래픽스 쪽과 같은 이유. 위 주석 참조.
+	uint32 SafeGroupIndex();
 
 private:
 
