@@ -34,7 +34,7 @@ void Camera::FinalUpdate()
 	else
 		_matProjection = ::XMMatrixOrthographicLH(_width * _scale, _height * _scale, _near, _far);
 
-	_frustum.FinalUpdate();
+	_frustum.FinalUpdate(_matView, _matProjection);
 }
 
 void Camera::SortGameObject()
@@ -109,8 +109,6 @@ void Camera::SortShadowObject()
 	for (auto& gameObject : gameObjects)
 	{
 		// 빌보드는 셰도우 패스에 넣을지를 자기가 정한다.
-		// 절두체 검사는 하지 않는다 - 여기서 쓰는 절두체는 광원의 것이고,
-		// 초목은 심은 범위 전체가 한 오브젝트라 잘라 봐야 전부 아니면 전무다.
 		if (gameObject->GetBillboardRenderer())
 		{
 			if (IsCulled(gameObject->GetLayerIndex()) == false
@@ -130,19 +128,10 @@ void Camera::SortShadowObject()
 		if (IsCulled(gameObject->GetLayerIndex()))
 			continue;
 
-		if (gameObject->GetCheckFrustum())
-		{
-			Vec3 center;
-			float radius = 0.f;
-
-			// 바운즈를 못 구하면(메시 없음) 자르지 않는다.
-			// 모르는 것을 지우는 것보다 그리는 편이 낫다.
-			if (gameObject->GetWorldBoundingSphere(center, radius))
-			{
-				if (_frustum.ContainsSphere(center, radius) == false)
-					continue;
-			}
-		}
+		// 셰도우 패스에서는 절두체로 자르지 않는다.
+		// 이 카메라의 행렬은 Light::RenderShadow 가 캐스케이드마다 갈아끼우므로,
+		// FinalUpdate 시점에 만들어 둔 절두체는 실제로 그릴 볼륨이 아니다.
+		// 잘라내는 일은 캐스케이드의 직교 볼륨이 이미 한다.
 
 		_vecShadow.push_back(gameObject);
 	}
