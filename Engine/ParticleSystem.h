@@ -32,11 +32,17 @@ struct ParticleInfo
 	float	seed;
 };
 
+// particle.fx 의 Particle 과 배치가 같아야 한다.
+// 한쪽에만 필드를 더하면 셰이더가 조용히 남의 필드를 읽는다.
+static_assert(sizeof(ParticleInfo) == 48, "particle.fx 의 Particle 과 크기가 다르다");
+
 struct ComputeSharedInfo
 {
 	int32 addCount;
 	int32 padding[3];
 };
+
+static_assert(sizeof(ComputeSharedInfo) == 16, "particle.fx 의 ComputeShared 와 크기가 다르다");
 
 // 이미터 설정. 전에는 전부 private 상수라 클래스를 고쳐야 값을 바꿀 수 있었다.
 struct ParticleDesc

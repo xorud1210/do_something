@@ -14,7 +14,7 @@ void StructuredBuffer::Init(uint32 elementSize, uint32 elementCount, void* initi
 {
 	_elementSize = elementSize;
 	_elementCount = elementCount;
-	_resourceState = D3D12_RESOURCE_STATE_COMMON;
+	_initialState = D3D12_RESOURCE_STATE_COMMON;
 
 	// Buffer
 	{
@@ -26,7 +26,7 @@ void StructuredBuffer::Init(uint32 elementSize, uint32 elementCount, void* initi
 			&heapProperties,
 			D3D12_HEAP_FLAG_NONE,
 			&desc,
-			_resourceState,
+			_initialState,
 			nullptr,
 			IID_PPV_ARGS(&_buffer));
 
@@ -123,7 +123,7 @@ void StructuredBuffer::InitDynamic(uint32 elementSize, uint32 elementCount)
 
 	// UPLOAD 힙은 GENERIC_READ 로 고정이고 상태 전이가 없다.
 	// UAV 로는 못 쓰지만 셰이더가 읽기만 하면 충분하다.
-	_resourceState = D3D12_RESOURCE_STATE_GENERIC_READ;
+	_initialState = D3D12_RESOURCE_STATE_GENERIC_READ;
 
 	const uint64 bufferSize = static_cast<uint64>(_elementSize) * _elementCount;
 	D3D12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize, D3D12_RESOURCE_FLAG_NONE);
@@ -133,7 +133,7 @@ void StructuredBuffer::InitDynamic(uint32 elementSize, uint32 elementCount)
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		_resourceState,
+		_initialState,
 		nullptr,
 		IID_PPV_ARGS(&_buffer));
 
@@ -194,5 +194,5 @@ void StructuredBuffer::CopyInitialData(uint64 bufferSize, void* initialData)
 
 	GEngine->GetGraphicsCmdQueue()->FlushResourceCommandQueue();
 
-	_resourceState = D3D12_RESOURCE_STATE_COMMON;
+	_initialState = D3D12_RESOURCE_STATE_COMMON;
 }

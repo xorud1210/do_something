@@ -84,6 +84,9 @@ struct AnimChannelData
 	Vec3	padding;
 };
 
+// animation.fx 의 AnimChannel 과 배치가 같아야 한다.
+static_assert(sizeof(AnimChannelData) == 32, "animation.fx 의 AnimChannel 과 크기가 다르다");
+
 class Animator : public Component
 {
 public:

@@ -15,6 +15,9 @@ struct BillboardInstance
 	Vec3	padding;
 };
 
+// billboard.fx / foliage_cull.fx 의 BillboardInstance 와 배치가 같아야 한다.
+static_assert(sizeof(BillboardInstance) == 32, "셰이더의 BillboardInstance 와 크기가 다르다");
+
 struct BillboardDesc
 {
 	uint32	count = 2000;

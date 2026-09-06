@@ -1,4 +1,4 @@
-#include "pch.h"
+﻿#include "pch.h"
 #include "InstancingBuffer.h"
 #include "Engine.h"
 
@@ -37,9 +37,20 @@ void InstancingBuffer::AddData(InstancingParams& params)
 	_data.push_back(params);
 }
 
+// 여기는 프레임 끝의 WaitSync 에 기대고 있다.
+//
+// _buffer 는 UPLOAD 힙이고 CPU 가 직접 memcpy 로 덮어쓴다. 재할당도 그 자리에서
+// 이전 리소스를 놓는다. 둘 다 "직전 프레임 GPU 작업이 끝나 있다" 가 전제인데,
+// 그 보장은 GraphicsCommandQueue::RenderEnd 의 WaitSync 하나뿐이다.
+//
+// 프레임 버퍼링을 붙여 그 대기를 없앨 거면 여기도 같이 손봐야 한다
+// (프레임 수만큼 버퍼를 돌려 쓰는 식으로).
 void InstancingBuffer::PushData()
 {
 	const uint32 dataCount = GetCount();
+	if (dataCount == 0)
+		return;
+
 	if (dataCount > _maxCount)
 		Init(dataCount);
 
