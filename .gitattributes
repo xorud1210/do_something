@@ -1,2 +1,16 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# 에셋은 절대 줄바꿈 정규화를 하면 안 된다.
+# * text=auto 가 NUL 바이트로 이진 파일을 추측하는데, 하이트맵처럼
+# 값 범위가 좁은 파일은 텍스트로 오판될 수 있다. 명시해 둔다.
+*.dds  binary
+*.bin  binary
+*.raw  binary
+*.fbx  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.tga  binary
+*.lib  binary
+*.dll  binary
