@@ -32,3 +32,9 @@ Output/
 # 자세한 내용은 Library/Lib/README.md 참고.
 Library/Lib/*
 !Library/Lib/README.md
+
+## 포트폴리오 문서
+#
+# 저장소는 엔진 코드만 담는다. 문서와 작업 메모는 따로 낸다.
+docs/
+portfolio_notes.md
